@@ -221,60 +221,119 @@
             max-width: 840px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        .leaderboard-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .leaderboard-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        .leaderboard-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
 
     <!-- 홈 화면 -->
-    <div id="homeScreen" class="screen active">
-        <div class="text-center p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-2xl max-w-md w-full mx-4">
-            <h1 class="text-3xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-500 to-purple-500">
-                🍎 특수 사과 게임 🍎
-            </h1>
-            <p class="text-gray-400 text-xs mb-4">합 10을 맞춰 사과를 제거하세요!</p>
+    <div id="homeScreen" class="screen active p-4">
+        <div class="flex flex-col lg:flex-row gap-6 max-w-4xl w-full items-stretch justify-center">
+            
+            <!-- 왼쪽: 게임 모드 및 설정 카드 -->
+            <div class="text-center p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-2xl flex-1 max-w-md mx-auto w-full">
+                <h1 class="text-3xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-500 to-purple-500">
+                    🍎 특수 사과 게임 🍎
+                </h1>
+                <p class="text-gray-400 text-xs mb-4">합 10을 맞춰 사과를 제거하세요!</p>
 
-            <div class="mb-4 bg-black/30 p-2 rounded-2xl border border-white/5">
-                <span class="text-xs text-gray-400 block mb-1.5 font-bold">🎨 인게임 배경색 설정</span>
-                <div class="flex gap-2">
-                    <button id="bgBlackBtn" class="theme-btn flex-1 active-theme" onclick="setBgTheme('black')">⚫ 검정색</button>
-                    <button id="bgWhiteBtn" class="theme-btn flex-1" onclick="setBgTheme('white')">⚪ 흰색</button>
+                <!-- 닉네임 입력칸 -->
+                <div class="mb-4 bg-black/30 p-2.5 rounded-2xl border border-white/10 text-left">
+                    <label for="usernameInput" class="text-xs text-gray-400 block mb-1 font-bold">👤 플레이어 닉네임</label>
+                    <input type="text" id="usernameInput" placeholder="닉네임을 입력하세요" maxlength="12"
+                        class="w-full bg-white/10 text-white font-bold px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-pink-500 text-sm placeholder-gray-500 transition-all">
+                </div>
+
+                <div class="mb-4 bg-black/30 p-2 rounded-2xl border border-white/5">
+                    <span class="text-xs text-gray-400 block mb-1.5 font-bold">🎨 인게임 배경색 설정</span>
+                    <div class="flex gap-2">
+                        <button id="bgBlackBtn" class="theme-btn flex-1 active-theme" onclick="setBgTheme('black')">⚫ 검정색</button>
+                        <button id="bgWhiteBtn" class="theme-btn flex-1" onclick="setBgTheme('white')">⚪ 흰색</button>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mb-4 bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                    <button id="tabNormalBtn" class="tab-btn flex-1 active-tab" onclick="switchTab('normal')">🍎 노말 탭</button>
+                    <button id="tabCrazyBtn" class="tab-btn flex-1" onclick="switchTab('crazy')">🤪 크레이지 탭</button>
+                </div>
+
+                <div id="tabNormalContent" class="flex flex-col gap-2.5">
+                    <button class="btn-mode btn-normal" onclick="startGame('normal')">
+                        <span>🍎 노말 모드</span>
+                        <span id="hs_normal" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                    <button class="btn-mode btn-hard" onclick="startGame('hard')">
+                        <span>🔥 어려움 모드 (분수, 거듭제곱)</span>
+                        <span id="hs_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                    <button class="btn-mode btn-einstein" onclick="startGame('einstein')">
+                        <span>🧠 아인슈타인 모드 (전체 수식)</span>
+                        <span id="hs_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                </div>
+
+                <div id="tabCrazyContent" class="flex flex-col gap-2.5 hidden">
+                    <button class="btn-mode btn-crazy" onclick="startGame('crazy')">
+                        <span>🤪 크레이지 모드</span>
+                        <span id="hs_crazy" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                    <button class="btn-mode btn-crazy-hard" onclick="startGame('crazy_hard')">
+                        <span>💀 크레이지 어려움</span>
+                        <span id="hs_crazy_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                    <button class="btn-mode btn-crazy-einstein" onclick="startGame('crazy_einstein')">
+                        <span>⚛️ 크레이지 아인슈타인</span>
+                        <span id="hs_crazy_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="flex gap-2 mb-4 bg-black/40 p-1.5 rounded-2xl border border-white/5">
-                <button id="tabNormalBtn" class="tab-btn flex-1 active-tab" onclick="switchTab('normal')">🍎 노말 탭</button>
-                <button id="tabCrazyBtn" class="tab-btn flex-1" onclick="switchTab('crazy')">🤪 크레이지 탭</button>
+            <!-- 오른쪽: 리더보드 카드 -->
+            <div class="p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-2xl flex-1 max-w-md mx-auto w-full flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-500 flex items-center gap-2">
+                            🏆 명예의 전당 (Top 10)
+                        </h2>
+                        <button onclick="fetchLeaderboard()" class="text-xs bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg text-gray-300 transition-all border border-white/10">
+                            🔄 갱신
+                        </button>
+                    </div>
+
+                    <!-- 모드 선택 드롭다운 -->
+                    <div class="mb-3">
+                        <select id="leaderboardModeSelect" onchange="renderLeaderboard()" class="w-full bg-black/40 text-gray-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-amber-400">
+                            <option value="normal">🍎 노말 모드</option>
+                            <option value="hard">🔥 어려움 모드</option>
+                            <option value="einstein">🧠 아인슈타인 모드</option>
+                            <option value="crazy">🤪 크레이지 모드</option>
+                            <option value="crazy_hard">💀 크레이지 어려움</option>
+                            <option value="crazy_einstein">⚛️ 크레이지 아인슈타인</option>
+                        </select>
+                    </div>
+
+                    <!-- 리더보드 리스트 -->
+                    <div id="leaderboardList" class="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto pr-1 leaderboard-scroll">
+                        <!-- 동적 생성 -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/10 text-center text-xs text-gray-400">
+                    최고 점수를 달성하고 리더보드에 이름을 올려보세요! 🚀
+                </div>
             </div>
 
-            <div id="tabNormalContent" class="flex flex-col gap-2.5">
-                <button class="btn-mode btn-normal" onclick="startGame('normal')">
-                    <span>🍎 노말 모드</span>
-                    <span id="hs_normal" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
-                </button>
-                <button class="btn-mode btn-hard" onclick="startGame('hard')">
-                    <span>🔥 어려움 모드 (분수, 거듭제곱)</span>
-                    <span id="hs_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
-                </button>
-                <button class="btn-mode btn-einstein" onclick="startGame('einstein')">
-                    <span>🧠 아인슈타인 모드 (전체 수식)</span>
-                    <span id="hs_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
-                </button>
-            </div>
-
-            <div id="tabCrazyContent" class="flex flex-col gap-2.5 hidden">
-                <button class="btn-mode btn-crazy" onclick="startGame('crazy')">
-                    <span>🤪 크레이지 모드</span>
-                    <span id="hs_crazy" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">849점</span>
-                </button>
-                <button class="btn-mode btn-crazy-hard" onclick="startGame('crazy_hard')">
-                    <span>💀 크레이지 어려움</span>
-                    <span id="hs_crazy_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
-                </button>
-                <button class="btn-mode btn-crazy-einstein" onclick="startGame('crazy_einstein')">
-                    <span>⚛️ 크레이지 아인슈타인</span>
-                    <span id="hs_crazy_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
-                </button>
-            </div>
         </div>
     </div>
 
@@ -338,7 +397,7 @@
         const BOARD_OFFSET_Y = 10;
 
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false });
 
         let grid = [];
         let isDragging = false;
@@ -354,12 +413,28 @@
 
         let gameMode = 'normal';
         let bgTheme = localStorage.getItem('bg_theme') || 'black';
+        let currentUsername = localStorage.getItem('apple_username') || '익명';
+
+        // 초기화된 빈 리더보드 구조
+        let globalLeaderboard = {
+            normal: [],
+            hard: [],
+            einstein: [],
+            crazy: [],
+            crazy_hard: [],
+            crazy_einstein: []
+        };
+
+        const JSONBIN_CONFIG = {
+            BIN_ID: '',
+            API_KEY: ''
+        };
 
         let highScores = {
             normal: parseInt(localStorage.getItem('hs_normal') || '0'),
             hard: parseInt(localStorage.getItem('hs_hard') || '0'),
             einstein: parseInt(localStorage.getItem('hs_einstein') || '0'),
-            crazy: parseInt(localStorage.getItem('hs_crazy') || '849'),
+            crazy: parseInt(localStorage.getItem('hs_crazy') || '0'),
             crazy_hard: parseInt(localStorage.getItem('hs_crazy_hard') || '0'),
             crazy_einstein: parseInt(localStorage.getItem('hs_crazy_einstein') || '0')
         };
@@ -382,6 +457,102 @@
             3: [[1, 2, 7], [1, 3, 6], [1, 4, 5], [2, 3, 5], [2, 4, 4], [3, 3, 4]],
             4: [[1, 1, 1, 7], [1, 1, 2, 6], [1, 1, 3, 5], [1, 1, 4, 4], [1, 2, 2, 5], [1, 2, 3, 4], [2, 2, 2, 4], [2, 2, 3, 3]]
         };
+
+        async function fetchLeaderboard() {
+            if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.API_KEY) {
+                try {
+                    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+                        headers: { 'X-Master-Key': JSONBIN_CONFIG.API_KEY }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        globalLeaderboard = data.record;
+                        localStorage.setItem('online_leaderboard_cache', JSON.stringify(globalLeaderboard));
+                    }
+                } catch (e) {
+                    console.warn('온라인 리더보드 로드 실패:', e);
+                }
+            } else {
+                let cached = localStorage.getItem('online_leaderboard_cache');
+                if (cached) {
+                    try { globalLeaderboard = JSON.parse(cached); } catch(e){}
+                }
+            }
+            renderLeaderboard();
+        }
+
+        async function updateOnlineLeaderboard(mode, name, newScore) {
+            if (!globalLeaderboard[mode]) globalLeaderboard[mode] = [];
+            
+            const existingIndex = globalLeaderboard[mode].findIndex(entry => entry.name === name);
+            if (existingIndex !== -1) {
+                if (newScore > globalLeaderboard[mode][existingIndex].score) {
+                    globalLeaderboard[mode][existingIndex].score = newScore;
+                }
+            } else {
+                globalLeaderboard[mode].push({ name, score: newScore });
+            }
+
+            globalLeaderboard[mode].sort((a, b) => b.score - a.score);
+            globalLeaderboard[mode] = globalLeaderboard[mode].slice(0, 10);
+
+            localStorage.setItem('online_leaderboard_cache', JSON.stringify(globalLeaderboard));
+
+            if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.API_KEY) {
+                try {
+                    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                        },
+                        body: JSON.stringify(globalLeaderboard)
+                    });
+                } catch (e) {
+                    console.warn('온라인 리더보드 동기화 실패:', e);
+                }
+            }
+
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const selectedMode = document.getElementById('leaderboardModeSelect').value;
+            const container = document.getElementById('leaderboardList');
+            const list = globalLeaderboard[selectedMode] || [];
+
+            container.innerHTML = '';
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 text-xs py-8">아직 기록이 없습니다.<br>첫 번째 주인공이 되어보세요!</div>`;
+                return;
+            }
+
+            list.forEach((item, index) => {
+                const rankColor = index === 0 ? 'text-yellow-400 font-extrabold' :
+                                  index === 1 ? 'text-gray-300 font-bold' :
+                                  index === 2 ? 'text-amber-600 font-bold' : 'text-gray-400';
+                
+                const rankBadge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center bg-black/30 px-3 py-2 rounded-xl border border-white/5 text-xs';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden mr-2">
+                        <span class="w-6 text-center ${rankColor} font-mono">${rankBadge}</span>
+                        <span class="font-bold text-gray-200 truncate max-w-[120px]">${escapeHtml(item.name)}</span>
+                    </div>
+                    <span class="font-extrabold text-amber-300 font-mono">${item.score}점</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
 
         function setBgTheme(theme) {
             bgTheme = theme;
@@ -484,13 +655,9 @@
             const isEinsteinMode = mode === 'einstein' || mode === 'crazy_einstein';
             const isHardMode = mode === 'hard' || mode === 'crazy_hard';
 
-            let formulaChance = 0.38;
-            if (isEinsteinMode) {
-                formulaChance = 0.63;
-            }
+            let formulaChance = isEinsteinMode ? 0.63 : 0.38;
 
-            const isFormula = Math.random() < formulaChance;
-            if (!isFormula) {
+            if (Math.random() >= formulaChance) {
                 return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
             }
 
@@ -501,11 +668,9 @@
                 chosenType = allowedHardTypes[Math.floor(Math.random() * allowedHardTypes.length)];
             } else if (isEinsteinMode) {
                 const rand = Math.random();
-                if (rand < 0.35) {
-                    chosenType = 'POWER';
-                } else if (rand < 0.65) {
-                    chosenType = 'FRACTION';
-                } else {
+                if (rand < 0.35) chosenType = 'POWER';
+                else if (rand < 0.65) chosenType = 'FRACTION';
+                else {
                     const allowedOther = ['ROOT', 'FACTORIAL', 'ABS', 'TRIG', 'LOG'];
                     chosenType = allowedOther[Math.floor(Math.random() * allowedOther.length)];
                 }
@@ -515,8 +680,7 @@
 
             if (chosenType === 'ROOT') {
                 const absVal = Math.abs(effectiveVal);
-                const text = `√${absVal * absVal}`;
-                return { type: 'ROOT', isNegative: false, val: effectiveVal, text };
+                return { type: 'ROOT', isNegative: false, val: effectiveVal, text: `√${absVal * absVal}` };
             }
 
             if (chosenType === 'FRACTION') {
@@ -527,69 +691,16 @@
                 return { type: 'FRACTION', isNegative: false, num, den, val: effectiveVal };
             }
 
-            if (chosenType === 'FACTORIAL') {
-                if (val === 1) return { type: 'NORMAL', val: effectiveVal, text: `1!` };
-                if (val === 2) return { type: 'NORMAL', val: effectiveVal, text: `2!` };
-                if (val === 6) return { type: 'NORMAL', val: effectiveVal, text: `3!` };
-                const absVal = Math.abs(effectiveVal);
-                return { type: 'ROOT', isNegative: false, val: effectiveVal, text: `√${absVal * absVal}` };
-            }
-
             if (chosenType === 'POWER') {
                 let validPowers = [
-                    { base: 2, exp: 1, val: 2 },
-                    { base: 2, exp: 2, val: 4 },
-                    { base: 2, exp: 3, val: 8 },
-                    { base: 3, exp: 1, val: 3 },
-                    { base: 3, exp: 2, val: 9 },
-                    { base: 4, exp: 1, val: 4 },
-                    { base: 5, exp: 1, val: 5 },
-                    { base: 6, exp: 1, val: 6 },
-                    { base: 7, exp: 1, val: 7 },
-                    { base: 8, exp: 1, val: 8 },
-                    { base: 9, exp: 1, val: 9 }
+                    { base: 2, exp: 1, val: 2 }, { base: 2, exp: 2, val: 4 }, { base: 2, exp: 3, val: 8 },
+                    { base: 3, exp: 1, val: 3 }, { base: 3, exp: 2, val: 9 }, { base: 4, exp: 1, val: 4 },
+                    { base: 5, exp: 1, val: 5 }, { base: 6, exp: 1, val: 6 }, { base: 7, exp: 1, val: 7 },
+                    { base: 8, exp: 1, val: 8 }, { base: 9, exp: 1, val: 9 }
                 ];
                 let chosenPower = validPowers[Math.floor(Math.random() * validPowers.length)];
-
                 const superscriptExponents = ['⁰', '¹', '²', '³'];
-                const expStr = superscriptExponents[chosenPower.exp] || String(chosenPower.exp);
-
-                return { type: 'NORMAL', val: chosenPower.val, text: `${chosenPower.base}${expStr}` };
-            }
-
-            if (chosenType === 'ABS') {
-                return { type: 'NORMAL', val: val, text: `|${val}|` };
-            }
-
-            if (chosenType === 'TRIG') {
-                if (isEinsteinMode) {
-                    let trigOptions = [];
-                    if (val === 1) {
-                        trigOptions = ['sin90°', 'cos0°', 'tan45°', '2sin30°', '2cos60°'];
-                    } else if (val === 2) {
-                        trigOptions = ['2tan45°', '4sin30°', '4cos60°'];
-                    } else if (val === 3) {
-                        trigOptions = ['3tan45°', '6sin30°', '6cos60°'];
-                    } else if (val === 4) {
-                        trigOptions = ['4tan45°', '8sin30°', '8cos60°'];
-                    } else if (val === 5) {
-                        trigOptions = ['5tan45°', '10sin30°', '10cos60°'];
-                    } else if (val === 6) {
-                        trigOptions = ['6tan45°', '12sin30°', '12cos60°'];
-                    } else {
-                        trigOptions = [`${val}tan45°`, `${val * 2}sin30°`, `${val * 2}cos60°`];
-                    }
-                    const chosenTrig = trigOptions[Math.floor(Math.random() * trigOptions.length)];
-                    return { type: 'NORMAL', val: effectiveVal, text: chosenTrig };
-                } else {
-                    return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
-                }
-            }
-
-            if (chosenType === 'LOG') {
-                if (val === 3) return { type: 'NORMAL', val: 3, text: `log₂8` };
-                if (val === 2) return { type: 'NORMAL', val: 2, text: `log₃9` };
-                return { type: 'NORMAL', val: effectiveVal, text: String(effectiveVal) };
+                return { type: 'NORMAL', val: chosenPower.val, text: `${chosenPower.base}${superscriptExponents[chosenPower.exp] || chosenPower.exp}` };
             }
 
             return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
@@ -641,9 +752,7 @@
 
         function initGrid() {
             grid = [];
-            for (let r = 0; r < ROWS; r++) {
-                grid[r] = [];
-            }
+            for (let r = 0; r < ROWS; r++) grid[r] = [];
 
             let numGrid = generateBalancedNumberGrid();
 
@@ -672,6 +781,10 @@
         }
 
         function startGame(mode = 'normal') {
+            const nameInput = document.getElementById('usernameInput').value.trim();
+            currentUsername = nameInput !== '' ? nameInput : '익명';
+            localStorage.setItem('apple_username', currentUsername);
+
             gameMode = mode;
             document.getElementById('homeScreen').classList.remove('active');
             document.getElementById('gameScreen').classList.add('active');
@@ -714,6 +827,7 @@
             document.getElementById('gameScreen').classList.remove('active');
             document.getElementById('homeScreen').classList.add('active');
             updateHighScoreUI();
+            fetchLeaderboard();
             isPaused = false;
             canvas.classList.remove('paused-canvas');
         }
@@ -779,6 +893,8 @@
                 localStorage.setItem(`hs_${gameMode}`, score);
             }
 
+            updateOnlineLeaderboard(gameMode, currentUsername, score);
+
             document.getElementById('finalScore').innerText = score;
             document.getElementById('finalHighScore').innerText = highScores[gameMode];
             document.getElementById('gameOverModal').classList.add('active');
@@ -841,23 +957,12 @@
 
         function isAppleIntersecting(ax, ay, sel) {
             const margin = APPLE_SIZE * 0.1;
-            const appleLeft = ax + margin;
-            const appleRight = ax + APPLE_SIZE - margin;
-            const appleTop = ay + margin;
-            const appleBottom = ay + APPLE_SIZE - margin;
-
-            const selLeft = sel.x;
-            const selRight = sel.x + sel.w;
-            const selTop = sel.y;
-            const selBottom = sel.y + sel.h;
-
-            return !(appleRight < selLeft || 
-                     appleLeft > selRight || 
-                     appleBottom < selTop || 
-                     appleTop > selBottom);
+            return !(ax + APPLE_SIZE - margin < sel.x || 
+                     ax + margin > sel.x + sel.w || 
+                     ay + APPLE_SIZE - margin < sel.y || 
+                     ay + margin > sel.y + sel.h);
         }
 
-        // [버그 수정 1] 선택된 사과 판정 로직 안정화
         function getCurrentlySelectedApples() {
             const sel = getSelectionRect();
             if (sel.w < 2 && sel.h < 2) return { selectedApples: [], canClear: false };
@@ -879,15 +984,9 @@
 
             if (selectedApples.length === 0) return { selectedApples: [], canClear: false };
 
-            let effectiveValues = selectedApples.map(item => item.cell.itemType === 'INFINITE' ? 0 : item.cell.val);
-            let sum = effectiveValues.reduce((a, b) => a + b, 0);
+            let sum = selectedApples.reduce((acc, item) => acc + (item.cell.itemType === 'INFINITE' ? 0 : item.cell.val), 0);
 
-            let canClear = false;
-            if (sum === 10) {
-                canClear = true;
-            } else if (hasInfinite && sum <= 10 && selectedApples.length >= 2) {
-                canClear = true;
-            }
+            let canClear = (sum === 10) || (hasInfinite && sum <= 10 && selectedApples.length >= 2);
 
             return { selectedApples, canClear };
         }
@@ -910,11 +1009,7 @@
             if (newType === 'INFINITE' && !isCrazy) val = 0;
             else if (newType === 'TEN') val = 10;
             else if (newType === 'MINUS') {
-                if (isCrazy) {
-                    val = -(Math.floor(Math.random() * 50) + 1);
-                } else {
-                    val = -(Math.floor(Math.random() * 9) + 1);
-                }
+                val = isCrazy ? -(Math.floor(Math.random() * 50) + 1) : -(Math.floor(Math.random() * 9) + 1);
             }
 
             grid[r][c] = {
@@ -933,7 +1028,6 @@
             };
         }
 
-        // [버그 수정 2] 마우스/터치를 뗐을 때 정상적으로 파괴 연산 실행
         function checkSelection() {
             if (isShuffling) return;
 
@@ -999,9 +1093,7 @@
                                 if (targetCell && !targetCell.isRemoved) {
                                     targetCell.isRemoved = true;
                                     additionalRemovedCount++;
-                                    let tax = targetCell.renderX + APPLE_SIZE / 2;
-                                    let tay = targetCell.renderY + APPLE_SIZE / 2;
-                                    createSlicedParticles(tax, tay, targetCell);
+                                    createSlicedParticles(targetCell.renderX + APPLE_SIZE / 2, targetCell.renderY + APPLE_SIZE / 2, targetCell);
                                 }
                             }
                         }
@@ -1009,63 +1101,35 @@
                 }
 
                 if (cell.isItem && cell.itemType === 'LASER') {
-                    let dirs = [[-1,0], [1,0], [0,-1], [0,1]];
-                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, dirs);
+                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, [[-1,0], [1,0], [0,-1], [0,1]]);
                 }
 
                 if (cell.isItem && cell.itemType === 'DIAG_LASER') {
-                    let diagDirs = [[-1,-1], [-1,1], [1,-1], [1,1]];
-                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, diagDirs);
+                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, [[-1,-1], [-1,1], [1,-1], [1,1]]);
                 }
             });
 
             let actualRemovedList = selectedApples.filter(i => i.cell.isRemoved);
             let totalRemovedCount = actualRemovedList.length + additionalRemovedCount;
-            let earnedScore = (totalRemovedCount * doubleMultiplier) + bonusScore;
-            score += earnedScore;
+            score += (totalRemovedCount * doubleMultiplier) + bonusScore;
             document.getElementById('scoreText').innerText = score;
 
-            if (triggerShuffle && isCrazy) {
-                let normalApples = [];
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        if (!grid[r][c].isRemoved && !grid[r][c].isItem) {
-                            normalApples.push({ r, c });
-                        }
-                    }
-                }
-                for (let i = 0; i < 5 && normalApples.length > 0; i++) {
-                    let randIdx = Math.floor(Math.random() * normalApples.length);
-                    let target = normalApples.splice(randIdx, 1)[0];
-                    createItemApple(target.r, target.c);
-                }
-                spawnAppleCount += 8;
-            }
-
             let itemSpawnChancePerSlot = isCrazy ? 0.50 : 0.40;
-
             actualRemovedList.forEach(target => {
                 if (!target.cell.isItem && Math.random() < itemSpawnChancePerSlot) {
                     createItemApple(target.r, target.c);
                 }
             });
 
-            if (spawnAppleCount > 0) {
-                spawnNewApples(spawnAppleCount);
-            }
-
-            if (triggerShuffle) {
-                startShuffleAnimationAllGrid();
-            }
+            if (spawnAppleCount > 0) spawnNewApples(spawnAppleCount);
+            if (triggerShuffle) startShuffleAnimationAllGrid();
         }
 
         function startShuffleAnimationAllGrid() {
             let activeApples = [];
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    if (!grid[r][c].isRemoved) {
-                        activeApples.push(grid[r][c]);
-                    }
+                    if (!grid[r][c].isRemoved) activeApples.push(grid[r][c]);
                 }
             }
 
@@ -1073,9 +1137,7 @@
 
             let allGridPositions = [];
             for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    allGridPositions.push({ r, c });
-                }
+                for (let c = 0; c < COLS; c++) allGridPositions.push({ r, c });
             }
 
             for (let i = allGridPositions.length - 1; i > 0; i--) {
@@ -1089,18 +1151,11 @@
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     newGrid[r][c] = {
-                        val: 0,
-                        display: { type: 'NORMAL', text: '0' },
-                        isItem: false,
-                        itemType: null,
-                        itemParam: 1,
-                        isRemoved: true,
-                        renderX: getAppleCanvasPos(r, c).x,
-                        renderY: getAppleCanvasPos(r, c).y,
-                        startX: getAppleCanvasPos(r, c).x,
-                        startY: getAppleCanvasPos(r, c).y,
-                        targetX: getAppleCanvasPos(r, c).x,
-                        targetY: getAppleCanvasPos(r, c).y
+                        val: 0, display: { type: 'NORMAL', text: '0' }, isItem: false,
+                        itemType: null, itemParam: 1, isRemoved: true,
+                        renderX: getAppleCanvasPos(r, c).x, renderY: getAppleCanvasPos(r, c).y,
+                        startX: getAppleCanvasPos(r, c).x, startY: getAppleCanvasPos(r, c).y,
+                        targetX: getAppleCanvasPos(r, c).x, targetY: getAppleCanvasPos(r, c).y
                     };
                 }
             }
@@ -1152,24 +1207,18 @@
                     if (targetCell && !targetCell.isRemoved) {
                         targetCell.isRemoved = true;
                         removedCount++;
-                        let tax = targetCell.renderX + APPLE_SIZE / 2;
-                        let tay = targetCell.renderY + APPLE_SIZE / 2;
-                        createSlicedParticles(tax, tay, targetCell);
+                        createSlicedParticles(targetCell.renderX + APPLE_SIZE / 2, targetCell.renderY + APPLE_SIZE / 2, targetCell);
 
                         if (!isCrazy) {
-                            endX = tax;
-                            endY = tay;
+                            endX = targetCell.renderX + APPLE_SIZE / 2;
+                            endY = targetCell.renderY + APPLE_SIZE / 2;
                             break;
                         }
                     }
                     step++;
                 }
 
-                lasers.push({
-                    x1: ax, y1: ay,
-                    x2: endX, y2: endY,
-                    life: 1.0
-                });
+                lasers.push({ x1: ax, y1: ay, x2: endX, y2: endY, life: 1.0 });
             });
             return removedCount;
         }
@@ -1178,9 +1227,7 @@
             let emptyCells = [];
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    if (grid[r][c].isRemoved) {
-                        emptyCells.push({ r, c });
-                    }
+                    if (grid[r][c].isRemoved) emptyCells.push({ r, c });
                 }
             }
 
@@ -1194,7 +1241,6 @@
                     let comboSize = (remaining >= 4) ? [2, 3, 4][Math.floor(Math.random() * 3)] : (remaining >= 3 ? [2, 3][Math.floor(Math.random() * 2)] : 2);
                     let comboList = TEN_COMBINATIONS[comboSize];
                     let combo = comboList[Math.floor(Math.random() * comboList.length)];
-
                     combo.forEach(val => valuesToSpawn.push(val));
                     remaining -= comboSize;
                 } else {
@@ -1212,48 +1258,31 @@
 
                 grid[target.r][target.c] = {
                     val: (display.val !== undefined) ? display.val : val,
-                    display: display,
-                    isItem: false,
-                    itemType: null,
-                    itemParam: 1,
-                    isRemoved: false,
-                    renderX: pos.x,
-                    renderY: pos.y,
-                    startX: pos.x,
-                    startY: pos.y,
-                    targetX: pos.x,
-                    targetY: pos.y
+                    display: display, isItem: false, itemType: null, itemParam: 1, isRemoved: false,
+                    renderX: pos.x, renderY: pos.y, startX: pos.x, startY: pos.y, targetX: pos.x, targetY: pos.y
                 };
             });
         }
 
         function createSlicedParticles(x, y, cell) {
             particles.push({
-                x: x, y: y,
-                vx: -2 - Math.random() * 3, vy: -3 - Math.random() * 2,
-                rot: 0, vRot: -0.1 - Math.random() * 0.1,
-                side: 'left', cell: cell, life: 1.0
+                x: x, y: y, vx: -2 - Math.random() * 3, vy: -3 - Math.random() * 2,
+                rot: 0, vRot: -0.1 - Math.random() * 0.1, side: 'left', cell: cell, life: 1.0
             });
             particles.push({
-                x: x, y: y,
-                vx: 2 + Math.random() * 3, vy: -3 - Math.random() * 2,
-                rot: 0, vRot: 0.1 + Math.random() * 0.1,
-                side: 'right', cell: cell, life: 1.0
+                x: x, y: y, vx: 2 + Math.random() * 3, vy: -3 - Math.random() * 2,
+                rot: 0, vRot: 0.1 + Math.random() * 0.1, side: 'right', cell: cell, life: 1.0
             });
         }
 
         function createBombExplosionEffect(x, y, maxRadius = 70) {
-            bombExplosions.push({
-                x: x, y: y, radius: 10, maxRadius: maxRadius, life: 1.0
-            });
-            for (let i = 0; i < 20; i++) {
+            bombExplosions.push({ x, y, radius: 10, maxRadius, life: 1.0 });
+            for (let i = 0; i < 12; i++) {
                 let angle = Math.random() * Math.PI * 2;
-                let speed = 3 + Math.random() * 6;
+                let speed = 3 + Math.random() * 5;
                 particles.push({
-                    x: x, y: y,
-                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                    rot: 0, vRot: 0,
-                    side: 'bomb_spark', cell: { isItem: false }, life: 0.8
+                    x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    rot: 0, vRot: 0, side: 'bomb_spark', cell: { isItem: false }, life: 0.8
                 });
             }
         }
@@ -1267,81 +1296,47 @@
 
             if (isLeftHalf !== null) {
                 ctx.beginPath();
-                if (isLeftHalf) {
-                    ctx.rect(cx - radius - 5, cy - radius - 10, radius + 5, radius * 2 + 15);
-                } else {
-                    ctx.rect(cx, cy - radius - 10, radius + 5, radius * 2 + 15);
-                }
+                if (isLeftHalf) ctx.rect(cx - radius - 5, cy - radius - 10, radius + 5, radius * 2 + 15);
+                else ctx.rect(cx, cy - radius - 10, radius + 5, radius * 2 + 15);
                 ctx.clip();
             }
 
+            // 나뭇잎 & 줄기
             ctx.beginPath();
             ctx.moveTo(cx, cy - radius + 2);
             ctx.quadraticCurveTo(cx + 2, cy - radius - 4, cx + 4, cy - radius - 7);
             ctx.strokeStyle = '#5d4037';
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 2;
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.ellipse(cx + 5, cy - radius - 4, 4.5, 2.2, Math.PI / 4, 0, Math.PI * 2);
+            ctx.ellipse(cx + 5, cy - radius - 4, 4, 2, Math.PI / 4, 0, Math.PI * 2);
             ctx.fillStyle = '#2ed573';
             ctx.fill();
 
             if (isHighlighted) {
-                ctx.save();
                 ctx.beginPath();
                 ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
                 ctx.strokeStyle = '#00ff66';
-                ctx.lineWidth = 4;
-                ctx.shadowColor = '#00ff66';
-                ctx.shadowBlur = 12;
+                ctx.lineWidth = 3;
                 ctx.stroke();
-                ctx.restore();
             }
 
+            // 사과 형태 단순화 렌더링
             ctx.beginPath();
-            let topIndent = radius * 0.05;
-            let bottomIndent = radius * 0.03;
-
-            ctx.moveTo(cx, cy - radius + topIndent);
-            ctx.bezierCurveTo(cx + radius * 0.85, cy - radius, cx + radius * 1.02, cy - radius * 0.3, cx + radius * 0.98, cy + radius * 0.3);
-            ctx.bezierCurveTo(cx + radius * 0.95, cy + radius * 0.85, cx + radius * 0.3, cy + radius - bottomIndent, cx, cy + radius - bottomIndent);
-            ctx.bezierCurveTo(cx - radius * 0.3, cy + radius - bottomIndent, cx - radius * 0.95, cy + radius * 0.85, cx - radius * 0.98, cy + radius * 0.3);
-            ctx.bezierCurveTo(cx - radius * 1.02, cy - radius * 0.3, cx - radius * 0.85, cy - radius, cx, cy - radius + topIndent);
-            ctx.closePath();
-
-            let grad = ctx.createRadialGradient(
-                cx - radius * 0.3, cy - radius * 0.3, radius * 0.1,
-                cx, cy, radius * 1.1
-            );
-
-            if (baseColor === '#ff4757') {
-                grad.addColorStop(0, '#ff708a');
-                grad.addColorStop(0.5, '#ff4757');
-                grad.addColorStop(1, '#c0392b');
-            } else {
-                grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.7, baseColor);
-                grad.addColorStop(1, '#000000');
-            }
-
-            ctx.fillStyle = grad;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-            ctx.shadowBlur = 6;
-            ctx.shadowOffsetY = 3;
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = baseColor;
             ctx.fill();
 
             ctx.beginPath();
-            ctx.ellipse(cx - radius * 0.38, cy - radius * 0.38, radius * 0.22, radius * 0.12, -Math.PI / 4, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-            ctx.shadowBlur = 0;
+            ctx.ellipse(cx - radius * 0.3, cy - radius * 0.3, radius * 0.2, radius * 0.1, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.fill();
 
             ctx.restore();
         }
 
         function drawAppleContent(cx, cy, cell) {
-            ctx.shadowBlur = 0;
             ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -1352,25 +1347,22 @@
             if (display.type === 'FRACTION') {
                 ctx.lineWidth = 2;
                 ctx.font = 'bold 11px sans-serif';
-
-                const numText = `${display.num}`;
-                
-                ctx.fillText(numText, cx, cy - 7);
+                ctx.fillText(`${display.num}`, cx, cy - 7);
                 ctx.fillText(display.den, cx, cy + 9);
 
                 ctx.beginPath();
-                ctx.moveTo(cx - 12, cy);
-                ctx.lineTo(cx + 12, cy);
+                ctx.moveTo(cx - 10, cy);
+                ctx.lineTo(cx + 10, cy);
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
             } else if (display.type === 'ROOT') {
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 2;
                 ctx.font = '900 13px sans-serif';
                 ctx.strokeText(display.text, cx, cy);
                 ctx.fillText(display.text, cx, cy);
             } else {
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2.5;
                 let textToShow = display.text || String(cell.val);
                 ctx.font = textToShow.length > 5 ? '900 10px sans-serif' : (textToShow.length > 3 ? '900 12px sans-serif' : '900 18px sans-serif');
                 ctx.strokeText(textToShow, cx, cy);
@@ -1379,19 +1371,20 @@
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 배경 그리기
+            ctx.fillStyle = bgTheme === 'white' ? '#f3f4f6' : '#0a0a12';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const time = Date.now() * 0.003;
 
             if (isShuffling) {
-                shuffleProgress += 0.035;
+                shuffleProgress += 0.04;
                 if (shuffleProgress >= 1.0) {
                     shuffleProgress = 1.0;
                     isShuffling = false;
                 }
 
                 let easedT = easeInOutCubic(shuffleProgress);
-
                 for (let r = 0; r < ROWS; r++) {
                     for (let c = 0; c < COLS; c++) {
                         let cell = grid[r][c];
@@ -1406,9 +1399,7 @@
             const { selectedApples, canClear } = isDragging ? getCurrentlySelectedApples() : { selectedApples: [], canClear: false };
             const highlightedSet = new Set();
             if (canClear) {
-                selectedApples.forEach(item => {
-                    highlightedSet.add(item.cell);
-                });
+                selectedApples.forEach(item => highlightedSet.add(item.cell));
             }
 
             for (let r = 0; r < ROWS; r++) {
@@ -1421,8 +1412,8 @@
                     let isHighlighted = highlightedSet.has(cell);
 
                     if (cell.isItem) {
-                        let scale = 1 + Math.sin(time * 3) * 0.08;
-                        let hue = (Date.now() / 10) % 360;
+                        let scale = 1 + Math.sin(time * 3) * 0.06;
+                        let hue = (Date.now() / 15) % 360;
 
                         ctx.save();
                         ctx.translate(x + APPLE_SIZE / 2, y + APPLE_SIZE / 2);
@@ -1432,17 +1423,13 @@
                             ctx.beginPath();
                             ctx.arc(0, 0, APPLE_SIZE / 2 + 2, 0, Math.PI * 2);
                             ctx.strokeStyle = '#00ff66';
-                            ctx.lineWidth = 4;
-                            ctx.shadowColor = '#00ff66';
-                            ctx.shadowBlur = 14;
+                            ctx.lineWidth = 3;
                             ctx.stroke();
                         }
 
                         ctx.beginPath();
                         ctx.arc(0, 0, APPLE_SIZE / 2 - 2, 0, Math.PI * 2);
-                        ctx.fillStyle = `hsl(${hue}, 85%, 55%)`;
-                        ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
-                        ctx.shadowBlur = 12;
+                        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
                         ctx.fill();
 
                         ctx.textAlign = 'center';
@@ -1451,9 +1438,7 @@
                         let label = cell.val;
                         const isCrazy = gameMode.startsWith('crazy');
 
-                        if (cell.itemType === 'INFINITE') {
-                            label = isCrazy ? `∞(${cell.itemParam})` : '∞';
-                        }
+                        if (cell.itemType === 'INFINITE') label = isCrazy ? `∞(${cell.itemParam})` : '∞';
                         else if (cell.itemType === 'DOUBLE') label = `${cell.val}\n(${cell.itemParam || 2}X)`;
                         else if (cell.itemType === 'SPAWN') label = `${cell.val}\n(+${cell.itemParam || 1})`;
                         else if (cell.itemType === 'BOMB') label = `💣\n${cell.val}`;
@@ -1465,12 +1450,10 @@
                         else if (cell.itemType === 'TIME') label = `⏱️\n${cell.val}`;
 
                         ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 3.5;
-                        ctx.lineJoin = 'round';
+                        ctx.lineWidth = 2.5;
 
                         if (typeof label === 'string' && label.includes('\n')) {
                             let lines = label.split('\n');
-                            
                             ctx.font = '900 11px sans-serif';
                             ctx.strokeText(lines[0], 0, -6);
                             ctx.fillStyle = '#ffffff';
@@ -1495,10 +1478,11 @@
                 }
             }
 
+            // 폭발 효과
             for (let i = bombExplosions.length - 1; i >= 0; i--) {
                 let b = bombExplosions[i];
-                b.radius += 5;
-                b.life -= 0.03;
+                b.radius += 6;
+                b.life -= 0.04;
                 if (b.life <= 0 || b.radius > b.maxRadius) {
                     bombExplosions.splice(i, 1);
                     continue;
@@ -1508,46 +1492,40 @@
                 ctx.globalAlpha = b.life;
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 100, 0, 0.4)';
+                ctx.fillStyle = 'rgba(255, 100, 0, 0.3)';
                 ctx.strokeStyle = '#ff3300';
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 3;
                 ctx.fill();
                 ctx.stroke();
                 ctx.restore();
             }
 
+            // 레이저 효과
             for (let i = lasers.length - 1; i >= 0; i--) {
                 let l = lasers[i];
-                l.life -= 0.02;
+                l.life -= 0.04;
                 if (l.life <= 0) {
                     lasers.splice(i, 1);
                     continue;
                 }
 
                 ctx.save();
-                ctx.globalAlpha = Math.min(1.0, l.life * 1.2);
+                ctx.globalAlpha = Math.min(1.0, l.life);
                 ctx.beginPath();
                 ctx.moveTo(l.x1, l.y1);
                 ctx.lineTo(l.x2, l.y2);
-                
                 ctx.strokeStyle = '#00ffff';
-                ctx.lineWidth = 8;
-                ctx.shadowColor = '#00ffff';
-                ctx.shadowBlur = 18;
+                ctx.lineWidth = 6;
                 ctx.stroke();
-
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
                 ctx.restore();
             }
 
+            // 파티클 효과
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.life -= 0.025;
+                p.life -= 0.035;
 
                 if (p.side === 'bomb_spark') {
                     if (p.life <= 0) {
@@ -1558,11 +1536,11 @@
                     ctx.globalAlpha = p.life;
                     ctx.fillStyle = '#ffcc00';
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.restore();
                 } else {
-                    p.vy += 0.35;
+                    p.vy += 0.4;
                     p.rot += p.vRot;
 
                     if (p.life <= 0 || p.y > canvas.height + 50) {
@@ -1574,29 +1552,15 @@
                     ctx.globalAlpha = Math.max(0, p.life);
                     ctx.translate(p.x, p.y);
                     ctx.rotate(p.rot);
-
-                    if (p.cell && p.cell.isItem) {
-                        ctx.beginPath();
-                        if (p.side === 'left') {
-                            ctx.arc(0, 0, APPLE_SIZE / 2 - 2, Math.PI * 0.5, Math.PI * 1.5);
-                        } else {
-                            ctx.arc(0, 0, APPLE_SIZE / 2 - 2, Math.PI * 1.5, Math.PI * 0.5);
-                        }
-                        ctx.closePath();
-                        let hue = (Date.now() / 10) % 360;
-                        ctx.fillStyle = `hsl(${hue}, 85%, 55%)`;
-                        ctx.fill();
-                    } else {
-                        drawAppleShape(0, 0, APPLE_SIZE / 2 - 2, '#ff4757', p.side === 'left');
-                    }
-
+                    drawAppleShape(0, 0, APPLE_SIZE / 2 - 2, '#ff4757', p.side === 'left');
                     ctx.restore();
                 }
             }
 
+            // 슬래시 라인 효과
             for (let i = slashLines.length - 1; i >= 0; i--) {
                 let l = slashLines[i];
-                l.life -= 0.08;
+                l.life -= 0.1;
                 if (l.life <= 0) {
                     slashLines.splice(i, 1);
                     continue;
@@ -1608,22 +1572,16 @@
                 ctx.moveTo(l.x1, l.y1);
                 ctx.lineTo(l.x2, l.y2);
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 4;
-                ctx.shadowColor = '#ffff00';
-                ctx.shadowBlur = 10;
+                ctx.lineWidth = 3;
                 ctx.stroke();
                 ctx.restore();
             }
 
+            // 영역 선택 사각형
             if (isDragging && !isPaused && !isShuffling) {
                 const sel = getSelectionRect();
-                if (canClear) {
-                    ctx.fillStyle = 'rgba(46, 213, 115, 0.25)';
-                    ctx.strokeStyle = '#2ed573';
-                } else {
-                    ctx.fillStyle = 'rgba(255, 71, 87, 0.25)';
-                    ctx.strokeStyle = '#ff4757';
-                }
+                ctx.fillStyle = canClear ? 'rgba(46, 213, 115, 0.2)' : 'rgba(255, 71, 87, 0.2)';
+                ctx.strokeStyle = canClear ? '#2ed573' : '#ff4757';
                 ctx.lineWidth = 2;
                 ctx.fillRect(sel.x, sel.y, sel.w, sel.h);
                 ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
@@ -1633,11 +1591,17 @@
         }
 
         window.onload = () => {
+            const savedUsername = localStorage.getItem('apple_username');
+            if (savedUsername) {
+                document.getElementById('usernameInput').value = savedUsername;
+            }
+
             updateHighScoreUI();
             updateThemeUI();
             updateLegend();
             resizeCanvas();
             initGrid();
+            fetchLeaderboard();
             draw();
         };
     </script>
