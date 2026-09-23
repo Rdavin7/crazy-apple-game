@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>특수 사과 게임 - 아인슈타인 모드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #12121e, #202038);
+            color: #fff;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen.active {
+            display: flex !important;
+        }
+
+        .game-container {
+            position: relative;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            touch-action: none;
+            transition: background 0.3s ease;
+        }
+
+        .game-container.bg-black-theme {
+            background: rgba(0, 0, 0, 0.95) !important;
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .game-container.bg-white-theme {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-color: rgba(0, 0, 0, 0.15);
+            box-shadow: 0 15px 35px rgba(255,255,255,0.2);
+        }
+
+        #gameCanvas {
+            display: block;
+            border-radius: 12px;
+            cursor: crosshair;
+            opacity: 1;
+            filter: none;
+            transition: opacity 0.2s ease, filter 0.2s ease;
+        }
+
+        #gameCanvas.paused-canvas {
+            filter: blur(25px) brightness(0.1) !important;
+            opacity: 0.05 !important;
+            pointer-events: none;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.active {
+            display: flex !important;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn.active-tab {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .theme-btn {
+            padding: 8px 16px;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-btn.active-theme {
+            background: #ffffff;
+            color: #12121e;
+            border-color: transparent;
+            box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-mode {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .btn-mode:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-normal {
+            background: linear-gradient(135deg, #ef4444, #f43f5e);
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+        }
+
+        .btn-hard {
+            background: linear-gradient(135deg, #f59e0b, #ea580c);
+            box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-einstein {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-crazy {
+            background: linear-gradient(135deg, #ec4899, #d946ef);
+            box-shadow: 0 6px 18px rgba(236, 72, 153, 0.35);
+        }
+
+        .btn-crazy-hard {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            box-shadow: 0 6px 18px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-crazy-einstein {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            box-shadow: 0 6px 18px rgba(6, 182, 212, 0.35);
+        }
+
+        .btn-main {
+            padding: 10px 24px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            border-radius: 50px;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            padding: 10px 22px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ddd;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 4px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+        }
+
+        .item-legend-box {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            font-size: 0.72rem;
+            color: #ccc;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 18px;
+            border-radius: 16px;
+            margin-top: 12px;
+            max-width: 840px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 홈 화면 -->
+    <div id="homeScreen" class="screen active">
+        <div class="text-center p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-2xl max-w-md w-full mx-4">
+            <h1 class="text-3xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-500 to-purple-500">
+                🍎 특수 사과 게임 🍎
+            </h1>
+            <p class="text-gray-400 text-xs mb-4">합 10을 맞춰 사과를 제거하세요!</p>
+
+            <div class="mb-4 bg-black/30 p-2 rounded-2xl border border-white/5">
+                <span class="text-xs text-gray-400 block mb-1.5 font-bold">🎨 인게임 배경색 설정</span>
+                <div class="flex gap-2">
+                    <button id="bgBlackBtn" class="theme-btn flex-1 active-theme" onclick="setBgTheme('black')">⚫ 검정색</button>
+                    <button id="bgWhiteBtn" class="theme-btn flex-1" onclick="setBgTheme('white')">⚪ 흰색</button>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mb-4 bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                <button id="tabNormalBtn" class="tab-btn flex-1 active-tab" onclick="switchTab('normal')">🍎 노말 탭</button>
+                <button id="tabCrazyBtn" class="tab-btn flex-1" onclick="switchTab('crazy')">🤪 크레이지 탭</button>
+            </div>
+
+            <div id="tabNormalContent" class="flex flex-col gap-2.5">
+                <button class="btn-mode btn-normal" onclick="startGame('normal')">
+                    <span>🍎 노말 모드</span>
+                    <span id="hs_normal" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                </button>
+                <button class="btn-mode btn-hard" onclick="startGame('hard')">
+                    <span>🔥 어려움 모드 (분수, 거듭제곱)</span>
+                    <span id="hs_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                </button>
+                <button class="btn-mode btn-einstein" onclick="startGame('einstein')">
+                    <span>🧠 아인슈타인 모드 (전체 수식)</span>
+                    <span id="hs_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                </button>
+            </div>
+
+            <div id="tabCrazyContent" class="flex flex-col gap-2.5 hidden">
+                <button class="btn-mode btn-crazy" onclick="startGame('crazy')">
+                    <span>🤪 크레이지 모드</span>
+                    <span id="hs_crazy" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">849점</span>
+                </button>
+                <button class="btn-mode btn-crazy-hard" onclick="startGame('crazy_hard')">
+                    <span>💀 크레이지 어려움</span>
+                    <span id="hs_crazy_hard" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                </button>
+                <button class="btn-mode btn-crazy-einstein" onclick="startGame('crazy_einstein')">
+                    <span>⚛️ 크레이지 아인슈타인</span>
+                    <span id="hs_crazy_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 인게임 화면 -->
+    <div id="gameScreen" class="screen">
+        <div class="w-full max-w-[840px] flex justify-between items-center px-4 py-3 bg-white/10 backdrop-blur-md rounded-2xl mb-3 border border-white/10">
+            <div class="flex items-center gap-6">
+                <div>
+                    <span class="text-xs text-gray-400 block">점수</span>
+                    <span id="scoreText" class="text-2xl font-black text-red-500">0</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-400 block">남은 시간</span>
+                    <span id="timeText" class="text-2xl font-black text-yellow-400">120초</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-400 block">모드</span>
+                    <span id="modeText" class="text-base font-bold text-pink-400">노말</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button class="btn-secondary py-2 px-4 text-sm" onclick="togglePause()">⏸️ 일시정지</button>
+                <button class="btn-secondary py-2 px-4 text-sm" onclick="resetGame()">🔄 다시하기</button>
+            </div>
+        </div>
+
+        <div id="gameContainer" class="game-container bg-black-theme">
+            <canvas id="gameCanvas"></canvas>
+
+            <div id="pauseModal" class="modal-overlay">
+                <h2 class="text-3xl font-extrabold text-white mb-2">일시 정지</h2>
+                <p class="text-gray-400 text-sm mb-6">🔒 컨닝 방지를 위해 숫자가 숨겨졌습니다!</p>
+                <div class="flex flex-col w-48 gap-1">
+                    <button class="btn-main justify-center" onclick="togglePause()">▶️ 이어서 하기</button>
+                    <button class="btn-secondary justify-center" onclick="resetGame()">🔄 다시 하기</button>
+                    <button class="btn-secondary justify-center" onclick="goToHome()">🏠 홈으로 가기</button>
+                </div>
+            </div>
+
+            <div id="gameOverModal" class="modal-overlay">
+                <h2 class="text-4xl font-black text-red-500 mb-2">GAME OVER</h2>
+                <p class="text-xl text-gray-200 mb-1">최종 점수: <span id="finalScore" class="font-bold text-yellow-400">0</span>점</p>
+                <p class="text-sm text-gray-400 mb-6">최고 기록: <span id="finalHighScore" class="font-semibold text-white">0</span>점</p>
+                <div class="flex gap-2">
+                    <button class="btn-main" onclick="resetGame()">🔄 다시 하기</button>
+                    <button class="btn-secondary" onclick="goToHome()">🏠 홈으로</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="itemLegendBox" class="item-legend-box"></div>
+    </div>
+
+    <script>
+        const ROWS = 10;
+        const COLS = 17;
+        const APPLE_SIZE = 42;
+        const PADDING = 6;
+        const BOARD_OFFSET_X = 10;
+        const BOARD_OFFSET_Y = 10;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let grid = [];
+        let isDragging = false;
+        let startPos = { x: 0, y: 0 };
+        let currentPos = { x: 0, y: 0 };
+
+        let score = 0;
+        let timeLeft = 120;
+        let timerId = null;
+        let isGameOver = false;
+        let isPaused = false;
+        let animFrameId = null;
+
+        let gameMode = 'normal';
+        let bgTheme = localStorage.getItem('bg_theme') || 'black';
+
+        let highScores = {
+            normal: parseInt(localStorage.getItem('hs_normal') || '0'),
+            hard: parseInt(localStorage.getItem('hs_hard') || '0'),
+            einstein: parseInt(localStorage.getItem('hs_einstein') || '0'),
+            crazy: parseInt(localStorage.getItem('hs_crazy') || '849'),
+            crazy_hard: parseInt(localStorage.getItem('hs_crazy_hard') || '0'),
+            crazy_einstein: parseInt(localStorage.getItem('hs_crazy_einstein') || '0')
+        };
+
+        let particles = [];
+        let bombExplosions = [];
+        let slashLines = [];
+        let lasers = [];
+
+        let isShuffling = false;
+        let shuffleProgress = 0;
+
+        const ITEM_TYPES = [
+            'INFINITE', 'DOUBLE', 'SPAWN', 'BOMB', 'MINUS', 
+            'LASER', 'TEN', 'DIAG_LASER', 'SHUFFLE', 'TIME'
+        ];
+
+        const TEN_COMBINATIONS = {
+            2: [[1, 9], [2, 8], [3, 7], [4, 6], [5, 5]],
+            3: [[1, 2, 7], [1, 3, 6], [1, 4, 5], [2, 3, 5], [2, 4, 4], [3, 3, 4]],
+            4: [[1, 1, 1, 7], [1, 1, 2, 6], [1, 1, 3, 5], [1, 1, 4, 4], [1, 2, 2, 5], [1, 2, 3, 4], [2, 2, 2, 4], [2, 2, 3, 3]]
+        };
+
+        function setBgTheme(theme) {
+            bgTheme = theme;
+            localStorage.setItem('bg_theme', theme);
+            updateThemeUI();
+        }
+
+        function updateThemeUI() {
+            const container = document.getElementById('gameContainer');
+            const blackBtn = document.getElementById('bgBlackBtn');
+            const whiteBtn = document.getElementById('bgWhiteBtn');
+
+            if (bgTheme === 'white') {
+                container.classList.remove('bg-black-theme');
+                container.classList.add('bg-white-theme');
+                whiteBtn.classList.add('active-theme');
+                blackBtn.classList.remove('active-theme');
+            } else {
+                container.classList.remove('bg-white-theme');
+                container.classList.add('bg-black-theme');
+                blackBtn.classList.add('active-theme');
+                whiteBtn.classList.remove('active-theme');
+            }
+        }
+
+        function updateHighScoreUI() {
+            Object.keys(highScores).forEach(m => {
+                const el = document.getElementById(`hs_${m}`);
+                if (el) el.innerText = highScores[m] + '점';
+            });
+        }
+
+        function switchTab(tab) {
+            const normalContent = document.getElementById('tabNormalContent');
+            const crazyContent = document.getElementById('tabCrazyContent');
+            const tabNormalBtn = document.getElementById('tabNormalBtn');
+            const tabCrazyBtn = document.getElementById('tabCrazyBtn');
+
+            if (tab === 'normal') {
+                normalContent.classList.remove('hidden');
+                crazyContent.classList.add('hidden');
+                tabNormalBtn.classList.add('active-tab');
+                tabCrazyBtn.classList.remove('active-tab');
+            } else {
+                normalContent.classList.add('hidden');
+                crazyContent.classList.remove('hidden');
+                tabNormalBtn.classList.remove('active-tab');
+                tabCrazyBtn.classList.add('active-tab');
+            }
+        }
+
+        function updateLegend() {
+            const legendBox = document.getElementById('itemLegendBox');
+            if (gameMode.includes('hard') || gameMode.includes('einstein')) {
+                legendBox.innerHTML = `
+                    <div>🍎<b>10</b> 10 사과</div>
+                    <div>⏱️<b>시간</b> +3s/+5s 추가</div>
+                    <div>💣<b>폭탄</b> 범위 폭발</div>
+                    <div>∞<b>무한</b> 내구성 사과</div>
+                    <div>2X/5X<b>점수</b> 배율 적용</div>
+                    <div>⚡<b>레이저</b> 관통 효과</div>
+                    <div>🔀<b>전체</b> 빈 공간 셔플</div>
+                    <div>+1/+8<b>생성</b> 사과 추가</div>
+                    <div>-N<b>마이너스</b> 음수 아이템</div>
+                    <div>⚡<b>십자/대각선</b> 레이저</div>
+                `;
+            } else {
+                legendBox.innerHTML = `
+                    <div>🍎<b>10</b> 10 사과</div>
+                    <div>⚡<b>✕</b> 대각선 레이저</div>
+                    <div>🔀<b>전체</b> 빈 공간 포함 셔플</div>
+                    <div>⏱️<b>+3s/+5s</b> 시간 추가</div>
+                    <div>💣<b>폭발</b> 범주 제거</div>
+                    <div>∞<b>무한</b> 내구성 사과</div>
+                    <div>2X/5X<b>점수</b> 배율 적용</div>
+                    <div>+1/+8<b>생성</b> 사과 추가</div>
+                    <div>-N<b>마이너스</b> 음수 숫자</div>
+                    <div>⚡<b>십자</b> 십자 레이저</div>
+                `;
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = COLS * (APPLE_SIZE + PADDING) + BOARD_OFFSET_X * 2;
+            canvas.height = ROWS * (APPLE_SIZE + PADDING) + BOARD_OFFSET_Y * 2;
+        }
+
+        function getAppleCanvasPos(r, c) {
+            return {
+                x: BOARD_OFFSET_X + c * (APPLE_SIZE + PADDING),
+                y: BOARD_OFFSET_Y + r * (APPLE_SIZE + PADDING)
+            };
+        }
+
+        function createAdvancedAppleDisplay(val, mode) {
+            if (mode === 'normal' || mode === 'crazy') {
+                return { type: 'NORMAL', text: String(val) };
+            }
+
+            const isEinsteinMode = mode === 'einstein' || mode === 'crazy_einstein';
+            const isHardMode = mode === 'hard' || mode === 'crazy_hard';
+
+            let formulaChance = 0.38;
+            if (isEinsteinMode) {
+                formulaChance = 0.63;
+            }
+
+            const isFormula = Math.random() < formulaChance;
+            if (!isFormula) {
+                return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
+            }
+
+            let chosenType = 'NORMAL';
+
+            if (isHardMode) {
+                const allowedHardTypes = ['FRACTION', 'POWER'];
+                chosenType = allowedHardTypes[Math.floor(Math.random() * allowedHardTypes.length)];
+            } else if (isEinsteinMode) {
+                const rand = Math.random();
+                if (rand < 0.35) {
+                    chosenType = 'POWER';
+                } else if (rand < 0.65) {
+                    chosenType = 'FRACTION';
+                } else {
+                    const allowedOther = ['ROOT', 'FACTORIAL', 'ABS', 'TRIG', 'LOG'];
+                    chosenType = allowedOther[Math.floor(Math.random() * allowedOther.length)];
+                }
+            }
+
+            const effectiveVal = val;
+
+            if (chosenType === 'ROOT') {
+                const absVal = Math.abs(effectiveVal);
+                const text = `√${absVal * absVal}`;
+                return { type: 'ROOT', isNegative: false, val: effectiveVal, text };
+            }
+
+            if (chosenType === 'FRACTION') {
+                const maxDenom = (mode === 'crazy_einstein') ? 15 : 10;
+                const den = Math.floor(Math.random() * maxDenom) + 1;
+                const absVal = Math.abs(effectiveVal);
+                const num = absVal * den;
+                return { type: 'FRACTION', isNegative: false, num, den, val: effectiveVal };
+            }
+
+            if (chosenType === 'FACTORIAL') {
+                if (val === 1) return { type: 'NORMAL', val: effectiveVal, text: `1!` };
+                if (val === 2) return { type: 'NORMAL', val: effectiveVal, text: `2!` };
+                if (val === 6) return { type: 'NORMAL', val: effectiveVal, text: `3!` };
+                const absVal = Math.abs(effectiveVal);
+                return { type: 'ROOT', isNegative: false, val: effectiveVal, text: `√${absVal * absVal}` };
+            }
+
+            if (chosenType === 'POWER') {
+                let validPowers = [
+                    { base: 2, exp: 1, val: 2 },
+                    { base: 2, exp: 2, val: 4 },
+                    { base: 2, exp: 3, val: 8 },
+                    { base: 3, exp: 1, val: 3 },
+                    { base: 3, exp: 2, val: 9 },
+                    { base: 4, exp: 1, val: 4 },
+                    { base: 5, exp: 1, val: 5 },
+                    { base: 6, exp: 1, val: 6 },
+                    { base: 7, exp: 1, val: 7 },
+                    { base: 8, exp: 1, val: 8 },
+                    { base: 9, exp: 1, val: 9 }
+                ];
+                let chosenPower = validPowers[Math.floor(Math.random() * validPowers.length)];
+
+                const superscriptExponents = ['⁰', '¹', '²', '³'];
+                const expStr = superscriptExponents[chosenPower.exp] || String(chosenPower.exp);
+
+                return { type: 'NORMAL', val: chosenPower.val, text: `${chosenPower.base}${expStr}` };
+            }
+
+            if (chosenType === 'ABS') {
+                return { type: 'NORMAL', val: val, text: `|${val}|` };
+            }
+
+            if (chosenType === 'TRIG') {
+                if (isEinsteinMode) {
+                    let trigOptions = [];
+                    if (val === 1) {
+                        trigOptions = ['sin90°', 'cos0°', 'tan45°', '2sin30°', '2cos60°'];
+                    } else if (val === 2) {
+                        trigOptions = ['2tan45°', '4sin30°', '4cos60°'];
+                    } else if (val === 3) {
+                        trigOptions = ['3tan45°', '6sin30°', '6cos60°'];
+                    } else if (val === 4) {
+                        trigOptions = ['4tan45°', '8sin30°', '8cos60°'];
+                    } else if (val === 5) {
+                        trigOptions = ['5tan45°', '10sin30°', '10cos60°'];
+                    } else if (val === 6) {
+                        trigOptions = ['6tan45°', '12sin30°', '12cos60°'];
+                    } else {
+                        trigOptions = [`${val}tan45°`, `${val * 2}sin30°`, `${val * 2}cos60°`];
+                    }
+                    const chosenTrig = trigOptions[Math.floor(Math.random() * trigOptions.length)];
+                    return { type: 'NORMAL', val: effectiveVal, text: chosenTrig };
+                } else {
+                    return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
+                }
+            }
+
+            if (chosenType === 'LOG') {
+                if (val === 3) return { type: 'NORMAL', val: 3, text: `log₂8` };
+                if (val === 2) return { type: 'NORMAL', val: 2, text: `log₃9` };
+                return { type: 'NORMAL', val: effectiveVal, text: String(effectiveVal) };
+            }
+
+            return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
+        }
+
+        function getRandomValue() {
+            return Math.floor(Math.random() * 9) + 1;
+        }
+
+        function generateBalancedNumberGrid() {
+            let numGrid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            let targetPatternCount = Math.floor((ROWS * COLS) / 4);
+
+            for (let i = 0; i < targetPatternCount; i++) {
+                if (Math.random() < 0.65) {
+                    let comboSize = [2, 3, 4][Math.floor(Math.random() * 3)];
+                    let comboList = TEN_COMBINATIONS[comboSize];
+                    let combo = comboList[Math.floor(Math.random() * comboList.length)];
+
+                    let r = Math.floor(Math.random() * ROWS);
+                    let c = Math.floor(Math.random() * (COLS - comboSize + 1));
+
+                    let canPlace = true;
+                    for (let k = 0; k < comboSize; k++) {
+                        if (numGrid[r][c + k] !== 0) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+
+                    if (canPlace) {
+                        for (let k = 0; k < comboSize; k++) {
+                            numGrid[r][c + k] = combo[k];
+                        }
+                    }
+                }
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (numGrid[r][c] === 0) {
+                        numGrid[r][c] = getRandomValue();
+                    }
+                }
+            }
+
+            return numGrid;
+        }
+
+        function initGrid() {
+            grid = [];
+            for (let r = 0; r < ROWS; r++) {
+                grid[r] = [];
+            }
+
+            let numGrid = generateBalancedNumberGrid();
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let val = numGrid[r][c];
+                    let pos = getAppleCanvasPos(r, c);
+                    let display = createAdvancedAppleDisplay(val, gameMode);
+
+                    grid[r][c] = {
+                        val: (display.val !== undefined) ? display.val : val,
+                        display: display,
+                        isItem: false,
+                        itemType: null,
+                        itemParam: 1,
+                        isRemoved: false,
+                        renderX: pos.x,
+                        renderY: pos.y,
+                        startX: pos.x,
+                        startY: pos.y,
+                        targetX: pos.x,
+                        targetY: pos.y
+                    };
+                }
+            }
+        }
+
+        function startGame(mode = 'normal') {
+            gameMode = mode;
+            document.getElementById('homeScreen').classList.remove('active');
+            document.getElementById('gameScreen').classList.add('active');
+
+            const modeText = document.getElementById('modeText');
+            if (gameMode === 'crazy_einstein') {
+                modeText.innerText = '⚛️ 크레이지 아인슈타인';
+                modeText.className = 'text-base font-bold text-cyan-400';
+            } else if (gameMode === 'crazy_hard') {
+                modeText.innerText = '💀 크레이지 어려움';
+                modeText.className = 'text-base font-bold text-purple-400';
+            } else if (gameMode === 'crazy') {
+                modeText.innerText = '🤪 크레이지';
+                modeText.className = 'text-base font-bold text-pink-400';
+            } else if (gameMode === 'einstein') {
+                modeText.innerText = '🧠 아인슈타인';
+                modeText.className = 'text-base font-bold text-blue-400';
+            } else if (gameMode === 'hard') {
+                modeText.innerText = '🔥 어려움';
+                modeText.className = 'text-base font-bold text-amber-400';
+            } else {
+                modeText.innerText = '🍎 노말';
+                modeText.className = 'text-base font-bold text-red-400';
+            }
+
+            updateThemeUI();
+            updateLegend();
+            resizeCanvas();
+            resetGame();
+
+            if (!animFrameId) {
+                draw();
+            }
+        }
+
+        function goToHome() {
+            if (timerId) clearInterval(timerId);
+            document.getElementById('pauseModal').classList.remove('active');
+            document.getElementById('gameOverModal').classList.remove('active');
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('homeScreen').classList.add('active');
+            updateHighScoreUI();
+            isPaused = false;
+            canvas.classList.remove('paused-canvas');
+        }
+
+        function togglePause() {
+            if (isGameOver) return;
+            isPaused = !isPaused;
+
+            const modal = document.getElementById('pauseModal');
+            if (isPaused) {
+                modal.classList.add('active');
+                canvas.classList.add('paused-canvas');
+                if (timerId) clearInterval(timerId);
+            } else {
+                modal.classList.remove('active');
+                canvas.classList.remove('paused-canvas');
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            if (timerId) clearInterval(timerId);
+            timerId = setInterval(() => {
+                if (!isPaused && !isGameOver) {
+                    timeLeft--;
+                    document.getElementById('timeText').innerText = timeLeft + '초';
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            score = 0;
+            timeLeft = 120;
+            isGameOver = false;
+            isPaused = false;
+            isShuffling = false;
+            shuffleProgress = 0;
+            particles = [];
+            bombExplosions = [];
+            slashLines = [];
+            lasers = [];
+
+            canvas.classList.remove('paused-canvas');
+
+            document.getElementById('scoreText').innerText = score;
+            document.getElementById('timeText').innerText = timeLeft + '초';
+            document.getElementById('pauseModal').classList.remove('active');
+            document.getElementById('gameOverModal').classList.remove('active');
+
+            initGrid();
+            startTimer();
+        }
+
+        function endGame() {
+            isGameOver = true;
+            if (timerId) clearInterval(timerId);
+
+            if (score > highScores[gameMode]) {
+                highScores[gameMode] = score;
+                localStorage.setItem(`hs_${gameMode}`, score);
+            }
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalHighScore').innerText = highScores[gameMode];
+            document.getElementById('gameOverModal').classList.add('active');
+            updateHighScoreUI();
+        }
+
+        function getCanvasPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (isGameOver || isPaused || isShuffling) return;
+            isDragging = true;
+            startPos = getCanvasPos(e);
+            currentPos = startPos;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || isGameOver || isPaused || isShuffling) return;
+            currentPos = getCanvasPos(e);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            checkSelection();
+            isDragging = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (isGameOver || isPaused || isShuffling) return;
+            isDragging = true;
+            startPos = getCanvasPos(e);
+            currentPos = startPos;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || isGameOver || isPaused || isShuffling) return;
+            currentPos = getCanvasPos(e);
+        });
+
+        canvas.addEventListener('touchend', () => {
+            if (!isDragging) return;
+            checkSelection();
+            isDragging = false;
+        });
+
+        function getSelectionRect() {
+            const x = Math.min(startPos.x, currentPos.x);
+            const y = Math.min(startPos.y, currentPos.y);
+            const w = Math.abs(startPos.x - currentPos.x);
+            const h = Math.abs(startPos.y - currentPos.y);
+            return { x, y, w, h };
+        }
+
+        function isAppleIntersecting(ax, ay, sel) {
+            const margin = APPLE_SIZE * 0.1;
+            const appleLeft = ax + margin;
+            const appleRight = ax + APPLE_SIZE - margin;
+            const appleTop = ay + margin;
+            const appleBottom = ay + APPLE_SIZE - margin;
+
+            const selLeft = sel.x;
+            const selRight = sel.x + sel.w;
+            const selTop = sel.y;
+            const selBottom = sel.y + sel.h;
+
+            return !(appleRight < selLeft || 
+                     appleLeft > selRight || 
+                     appleBottom < selTop || 
+                     appleTop > selBottom);
+        }
+
+        // [버그 수정 1] 선택된 사과 판정 로직 안정화
+        function getCurrentlySelectedApples() {
+            const sel = getSelectionRect();
+            if (sel.w < 2 && sel.h < 2) return { selectedApples: [], canClear: false };
+
+            let selectedApples = [];
+            let hasInfinite = false;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let cell = grid[r][c];
+                    if (!cell || cell.isRemoved) continue;
+
+                    if (isAppleIntersecting(cell.renderX, cell.renderY, sel)) {
+                        selectedApples.push({ r, c, cell });
+                        if (cell.isItem && cell.itemType === 'INFINITE') hasInfinite = true;
+                    }
+                }
+            }
+
+            if (selectedApples.length === 0) return { selectedApples: [], canClear: false };
+
+            let effectiveValues = selectedApples.map(item => item.cell.itemType === 'INFINITE' ? 0 : item.cell.val);
+            let sum = effectiveValues.reduce((a, b) => a + b, 0);
+
+            let canClear = false;
+            if (sum === 10) {
+                canClear = true;
+            } else if (hasInfinite && sum <= 10 && selectedApples.length >= 2) {
+                canClear = true;
+            }
+
+            return { selectedApples, canClear };
+        }
+
+        function createItemApple(r, c) {
+            let newType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+            let val = Math.floor(Math.random() * 9) + 1;
+            let param = (newType === 'DOUBLE') ? 2 : 1;
+
+            const isCrazy = gameMode.startsWith('crazy');
+
+            if (isCrazy) {
+                if (newType === 'TIME') param = 5;
+                else if (newType === 'SPAWN') param = 8;
+                else if (newType === 'DOUBLE') param = 5;
+                else if (newType === 'BOMB') param = 2;
+                else if (newType === 'INFINITE') param = 3;
+            }
+
+            if (newType === 'INFINITE' && !isCrazy) val = 0;
+            else if (newType === 'TEN') val = 10;
+            else if (newType === 'MINUS') {
+                if (isCrazy) {
+                    val = -(Math.floor(Math.random() * 50) + 1);
+                } else {
+                    val = -(Math.floor(Math.random() * 9) + 1);
+                }
+            }
+
+            grid[r][c] = {
+                val: val,
+                display: { type: 'ITEM', text: String(val) },
+                isItem: true,
+                itemType: newType,
+                itemParam: param,
+                isRemoved: false,
+                renderX: getAppleCanvasPos(r, c).x,
+                renderY: getAppleCanvasPos(r, c).y,
+                startX: getAppleCanvasPos(r, c).x,
+                startY: getAppleCanvasPos(r, c).y,
+                targetX: getAppleCanvasPos(r, c).x,
+                targetY: getAppleCanvasPos(r, c).y
+            };
+        }
+
+        // [버그 수정 2] 마우스/터치를 뗐을 때 정상적으로 파괴 연산 실행
+        function checkSelection() {
+            if (isShuffling) return;
+
+            const { selectedApples, canClear } = getCurrentlySelectedApples();
+            if (selectedApples.length === 0 || !canClear) return;
+
+            let doubleMultiplier = 1;
+            let triggerShuffle = false;
+            let bonusScore = 0;
+
+            const isCrazy = gameMode.startsWith('crazy');
+
+            selectedApples.forEach(item => {
+                let cell = item.cell;
+                if (cell.isItem && cell.itemType === 'DOUBLE') doubleMultiplier *= (cell.itemParam || 2);
+                if (cell.isItem && cell.itemType === 'SHUFFLE') triggerShuffle = true;
+                if (cell.isItem && cell.itemType === 'TEN' && isCrazy) bonusScore += 10;
+            });
+
+            slashLines.push({
+                x1: startPos.x, y1: startPos.y,
+                x2: currentPos.x, y2: currentPos.y,
+                life: 1.0
+            });
+
+            let spawnAppleCount = 0;
+            let additionalRemovedCount = 0;
+
+            selectedApples.forEach(item => {
+                let { r, c, cell } = item;
+                let ax = cell.renderX + APPLE_SIZE / 2;
+                let ay = cell.renderY + APPLE_SIZE / 2;
+
+                if (cell.isItem && cell.itemType === 'INFINITE' && isCrazy) {
+                    cell.itemParam--;
+                    if (cell.itemParam > 0) {
+                        createSlicedParticles(ax, ay, cell);
+                        return;
+                    }
+                }
+
+                cell.isRemoved = true;
+                createSlicedParticles(ax, ay, cell);
+
+                if (cell.isItem && cell.itemType === 'TIME') {
+                    timeLeft += (cell.itemParam || 3);
+                    document.getElementById('timeText').innerText = timeLeft + '초';
+                }
+
+                if (cell.isItem && cell.itemType === 'SPAWN') {
+                    spawnAppleCount += (cell.itemParam || 2);
+                }
+
+                if (cell.isItem && cell.itemType === 'BOMB') {
+                    createBombExplosionEffect(ax, ay, isCrazy ? 120 : 70);
+                    let range = cell.itemParam || 1;
+                    for (let dr = -range; dr <= range; dr++) {
+                        for (let dc = -range; dc <= range; dc++) {
+                            let nr = r + dr;
+                            let nc = c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                let targetCell = grid[nr][nc];
+                                if (targetCell && !targetCell.isRemoved) {
+                                    targetCell.isRemoved = true;
+                                    additionalRemovedCount++;
+                                    let tax = targetCell.renderX + APPLE_SIZE / 2;
+                                    let tay = targetCell.renderY + APPLE_SIZE / 2;
+                                    createSlicedParticles(tax, tay, targetCell);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (cell.isItem && cell.itemType === 'LASER') {
+                    let dirs = [[-1,0], [1,0], [0,-1], [0,1]];
+                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, dirs);
+                }
+
+                if (cell.isItem && cell.itemType === 'DIAG_LASER') {
+                    let diagDirs = [[-1,-1], [-1,1], [1,-1], [1,1]];
+                    additionalRemovedCount += processLaserDirections(r, c, ax, ay, diagDirs);
+                }
+            });
+
+            let actualRemovedList = selectedApples.filter(i => i.cell.isRemoved);
+            let totalRemovedCount = actualRemovedList.length + additionalRemovedCount;
+            let earnedScore = (totalRemovedCount * doubleMultiplier) + bonusScore;
+            score += earnedScore;
+            document.getElementById('scoreText').innerText = score;
+
+            if (triggerShuffle && isCrazy) {
+                let normalApples = [];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (!grid[r][c].isRemoved && !grid[r][c].isItem) {
+                            normalApples.push({ r, c });
+                        }
+                    }
+                }
+                for (let i = 0; i < 5 && normalApples.length > 0; i++) {
+                    let randIdx = Math.floor(Math.random() * normalApples.length);
+                    let target = normalApples.splice(randIdx, 1)[0];
+                    createItemApple(target.r, target.c);
+                }
+                spawnAppleCount += 8;
+            }
+
+            let itemSpawnChancePerSlot = isCrazy ? 0.50 : 0.40;
+
+            actualRemovedList.forEach(target => {
+                if (!target.cell.isItem && Math.random() < itemSpawnChancePerSlot) {
+                    createItemApple(target.r, target.c);
+                }
+            });
+
+            if (spawnAppleCount > 0) {
+                spawnNewApples(spawnAppleCount);
+            }
+
+            if (triggerShuffle) {
+                startShuffleAnimationAllGrid();
+            }
+        }
+
+        function startShuffleAnimationAllGrid() {
+            let activeApples = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (!grid[r][c].isRemoved) {
+                        activeApples.push(grid[r][c]);
+                    }
+                }
+            }
+
+            if (activeApples.length === 0) return;
+
+            let allGridPositions = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    allGridPositions.push({ r, c });
+                }
+            }
+
+            for (let i = allGridPositions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allGridPositions[i], allGridPositions[j]] = [allGridPositions[j], allGridPositions[i]];
+            }
+
+            let newBalancedNumGrid = generateBalancedNumberGrid();
+
+            let newGrid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    newGrid[r][c] = {
+                        val: 0,
+                        display: { type: 'NORMAL', text: '0' },
+                        isItem: false,
+                        itemType: null,
+                        itemParam: 1,
+                        isRemoved: true,
+                        renderX: getAppleCanvasPos(r, c).x,
+                        renderY: getAppleCanvasPos(r, c).y,
+                        startX: getAppleCanvasPos(r, c).x,
+                        startY: getAppleCanvasPos(r, c).y,
+                        targetX: getAppleCanvasPos(r, c).x,
+                        targetY: getAppleCanvasPos(r, c).y
+                    };
+                }
+            }
+
+            activeApples.forEach((cell, idx) => {
+                let targetPos = allGridPositions[idx];
+                let targetCanvasPos = getAppleCanvasPos(targetPos.r, targetPos.c);
+
+                if (!cell.isItem) {
+                    let newNumberVal = newBalancedNumGrid[targetPos.r][targetPos.c];
+                    let display = createAdvancedAppleDisplay(newNumberVal, gameMode);
+                    cell.val = (display.val !== undefined) ? display.val : newNumberVal;
+                    cell.display = display;
+                }
+
+                cell.startX = cell.renderX;
+                cell.startY = cell.renderY;
+                cell.targetX = targetCanvasPos.x;
+                cell.targetY = targetCanvasPos.y;
+
+                newGrid[targetPos.r][targetPos.c] = cell;
+            });
+
+            grid = newGrid;
+            isShuffling = true;
+            shuffleProgress = 0;
+        }
+
+        function processLaserDirections(r, c, ax, ay, dirs) {
+            let removedCount = 0;
+            const isCrazy = gameMode.startsWith('crazy');
+
+            dirs.forEach(d => {
+                let step = 1;
+                let endX = ax;
+                let endY = ay;
+
+                while (true) {
+                    let nr = r + d[0] * step;
+                    let nc = c + d[1] * step;
+
+                    if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) {
+                        endX = ax + d[1] * (step * (APPLE_SIZE + PADDING));
+                        endY = ay + d[0] * (step * (APPLE_SIZE + PADDING));
+                        break;
+                    }
+
+                    let targetCell = grid[nr][nc];
+                    if (targetCell && !targetCell.isRemoved) {
+                        targetCell.isRemoved = true;
+                        removedCount++;
+                        let tax = targetCell.renderX + APPLE_SIZE / 2;
+                        let tay = targetCell.renderY + APPLE_SIZE / 2;
+                        createSlicedParticles(tax, tay, targetCell);
+
+                        if (!isCrazy) {
+                            endX = tax;
+                            endY = tay;
+                            break;
+                        }
+                    }
+                    step++;
+                }
+
+                lasers.push({
+                    x1: ax, y1: ay,
+                    x2: endX, y2: endY,
+                    life: 1.0
+                });
+            });
+            return removedCount;
+        }
+
+        function spawnNewApples(count) {
+            let emptyCells = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c].isRemoved) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+
+            if (emptyCells.length === 0) return;
+
+            let valuesToSpawn = [];
+            let remaining = Math.min(count, emptyCells.length);
+
+            while (remaining > 0) {
+                if (remaining >= 2 && Math.random() < 0.65) {
+                    let comboSize = (remaining >= 4) ? [2, 3, 4][Math.floor(Math.random() * 3)] : (remaining >= 3 ? [2, 3][Math.floor(Math.random() * 2)] : 2);
+                    let comboList = TEN_COMBINATIONS[comboSize];
+                    let combo = comboList[Math.floor(Math.random() * comboList.length)];
+
+                    combo.forEach(val => valuesToSpawn.push(val));
+                    remaining -= comboSize;
+                } else {
+                    valuesToSpawn.push(getRandomValue());
+                    remaining--;
+                }
+            }
+
+            valuesToSpawn.forEach(val => {
+                if (emptyCells.length === 0) return;
+                let randIdx = Math.floor(Math.random() * emptyCells.length);
+                let target = emptyCells.splice(randIdx, 1)[0];
+                let pos = getAppleCanvasPos(target.r, target.c);
+                let display = createAdvancedAppleDisplay(val, gameMode);
+
+                grid[target.r][target.c] = {
+                    val: (display.val !== undefined) ? display.val : val,
+                    display: display,
+                    isItem: false,
+                    itemType: null,
+                    itemParam: 1,
+                    isRemoved: false,
+                    renderX: pos.x,
+                    renderY: pos.y,
+                    startX: pos.x,
+                    startY: pos.y,
+                    targetX: pos.x,
+                    targetY: pos.y
+                };
+            });
+        }
+
+        function createSlicedParticles(x, y, cell) {
+            particles.push({
+                x: x, y: y,
+                vx: -2 - Math.random() * 3, vy: -3 - Math.random() * 2,
+                rot: 0, vRot: -0.1 - Math.random() * 0.1,
+                side: 'left', cell: cell, life: 1.0
+            });
+            particles.push({
+                x: x, y: y,
+                vx: 2 + Math.random() * 3, vy: -3 - Math.random() * 2,
+                rot: 0, vRot: 0.1 + Math.random() * 0.1,
+                side: 'right', cell: cell, life: 1.0
+            });
+        }
+
+        function createBombExplosionEffect(x, y, maxRadius = 70) {
+            bombExplosions.push({
+                x: x, y: y, radius: 10, maxRadius: maxRadius, life: 1.0
+            });
+            for (let i = 0; i < 20; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 3 + Math.random() * 6;
+                particles.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    rot: 0, vRot: 0,
+                    side: 'bomb_spark', cell: { isItem: false }, life: 0.8
+                });
+            }
+        }
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function drawAppleShape(cx, cy, radius, baseColor = '#ff4757', isLeftHalf = null, isHighlighted = false) {
+            ctx.save();
+
+            if (isLeftHalf !== null) {
+                ctx.beginPath();
+                if (isLeftHalf) {
+                    ctx.rect(cx - radius - 5, cy - radius - 10, radius + 5, radius * 2 + 15);
+                } else {
+                    ctx.rect(cx, cy - radius - 10, radius + 5, radius * 2 + 15);
+                }
+                ctx.clip();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - radius + 2);
+            ctx.quadraticCurveTo(cx + 2, cy - radius - 4, cx + 4, cy - radius - 7);
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.ellipse(cx + 5, cy - radius - 4, 4.5, 2.2, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#2ed573';
+            ctx.fill();
+
+            if (isHighlighted) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00ff66';
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#00ff66';
+                ctx.shadowBlur = 12;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            let topIndent = radius * 0.05;
+            let bottomIndent = radius * 0.03;
+
+            ctx.moveTo(cx, cy - radius + topIndent);
+            ctx.bezierCurveTo(cx + radius * 0.85, cy - radius, cx + radius * 1.02, cy - radius * 0.3, cx + radius * 0.98, cy + radius * 0.3);
+            ctx.bezierCurveTo(cx + radius * 0.95, cy + radius * 0.85, cx + radius * 0.3, cy + radius - bottomIndent, cx, cy + radius - bottomIndent);
+            ctx.bezierCurveTo(cx - radius * 0.3, cy + radius - bottomIndent, cx - radius * 0.95, cy + radius * 0.85, cx - radius * 0.98, cy + radius * 0.3);
+            ctx.bezierCurveTo(cx - radius * 1.02, cy - radius * 0.3, cx - radius * 0.85, cy - radius, cx, cy - radius + topIndent);
+            ctx.closePath();
+
+            let grad = ctx.createRadialGradient(
+                cx - radius * 0.3, cy - radius * 0.3, radius * 0.1,
+                cx, cy, radius * 1.1
+            );
+
+            if (baseColor === '#ff4757') {
+                grad.addColorStop(0, '#ff708a');
+                grad.addColorStop(0.5, '#ff4757');
+                grad.addColorStop(1, '#c0392b');
+            } else {
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.7, baseColor);
+                grad.addColorStop(1, '#000000');
+            }
+
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 3;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.ellipse(cx - radius * 0.38, cy - radius * 0.38, radius * 0.22, radius * 0.12, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.shadowBlur = 0;
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawAppleContent(cx, cy, cell) {
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#000000';
+
+            const display = cell.display || { type: 'NORMAL', text: String(cell.val) };
+
+            if (display.type === 'FRACTION') {
+                ctx.lineWidth = 2;
+                ctx.font = 'bold 11px sans-serif';
+
+                const numText = `${display.num}`;
+                
+                ctx.fillText(numText, cx, cy - 7);
+                ctx.fillText(display.den, cx, cy + 9);
+
+                ctx.beginPath();
+                ctx.moveTo(cx - 12, cy);
+                ctx.lineTo(cx + 12, cy);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            } else if (display.type === 'ROOT') {
+                ctx.lineWidth = 2.5;
+                ctx.font = '900 13px sans-serif';
+                ctx.strokeText(display.text, cx, cy);
+                ctx.fillText(display.text, cx, cy);
+            } else {
+                ctx.lineWidth = 3;
+                let textToShow = display.text || String(cell.val);
+                ctx.font = textToShow.length > 5 ? '900 10px sans-serif' : (textToShow.length > 3 ? '900 12px sans-serif' : '900 18px sans-serif');
+                ctx.strokeText(textToShow, cx, cy);
+                ctx.fillText(textToShow, cx, cy);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const time = Date.now() * 0.003;
+
+            if (isShuffling) {
+                shuffleProgress += 0.035;
+                if (shuffleProgress >= 1.0) {
+                    shuffleProgress = 1.0;
+                    isShuffling = false;
+                }
+
+                let easedT = easeInOutCubic(shuffleProgress);
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        let cell = grid[r][c];
+                        if (cell && !cell.isRemoved) {
+                            cell.renderX = cell.startX + (cell.targetX - cell.startX) * easedT;
+                            cell.renderY = cell.startY + (cell.targetY - cell.startY) * easedT;
+                        }
+                    }
+                }
+            }
+
+            const { selectedApples, canClear } = isDragging ? getCurrentlySelectedApples() : { selectedApples: [], canClear: false };
+            const highlightedSet = new Set();
+            if (canClear) {
+                selectedApples.forEach(item => {
+                    highlightedSet.add(item.cell);
+                });
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let cell = grid[r] ? grid[r][c] : null;
+                    if (!cell || cell.isRemoved) continue;
+
+                    let x = cell.renderX;
+                    let y = cell.renderY;
+                    let isHighlighted = highlightedSet.has(cell);
+
+                    if (cell.isItem) {
+                        let scale = 1 + Math.sin(time * 3) * 0.08;
+                        let hue = (Date.now() / 10) % 360;
+
+                        ctx.save();
+                        ctx.translate(x + APPLE_SIZE / 2, y + APPLE_SIZE / 2);
+                        ctx.scale(scale, scale);
+
+                        if (isHighlighted) {
+                            ctx.beginPath();
+                            ctx.arc(0, 0, APPLE_SIZE / 2 + 2, 0, Math.PI * 2);
+                            ctx.strokeStyle = '#00ff66';
+                            ctx.lineWidth = 4;
+                            ctx.shadowColor = '#00ff66';
+                            ctx.shadowBlur = 14;
+                            ctx.stroke();
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(0, 0, APPLE_SIZE / 2 - 2, 0, Math.PI * 2);
+                        ctx.fillStyle = `hsl(${hue}, 85%, 55%)`;
+                        ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+                        ctx.shadowBlur = 12;
+                        ctx.fill();
+
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        let label = cell.val;
+                        const isCrazy = gameMode.startsWith('crazy');
+
+                        if (cell.itemType === 'INFINITE') {
+                            label = isCrazy ? `∞(${cell.itemParam})` : '∞';
+                        }
+                        else if (cell.itemType === 'DOUBLE') label = `${cell.val}\n(${cell.itemParam || 2}X)`;
+                        else if (cell.itemType === 'SPAWN') label = `${cell.val}\n(+${cell.itemParam || 1})`;
+                        else if (cell.itemType === 'BOMB') label = `💣\n${cell.val}`;
+                        else if (cell.itemType === 'MINUS') label = `${cell.val}`;
+                        else if (cell.itemType === 'LASER') label = `⚡\n${cell.val}`;
+                        else if (cell.itemType === 'TEN') label = `🍎\n10`;
+                        else if (cell.itemType === 'DIAG_LASER') label = `⚡✕\n${cell.val}`;
+                        else if (cell.itemType === 'SHUFFLE') label = `🔀\n${cell.val}`;
+                        else if (cell.itemType === 'TIME') label = `⏱️\n${cell.val}`;
+
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 3.5;
+                        ctx.lineJoin = 'round';
+
+                        if (typeof label === 'string' && label.includes('\n')) {
+                            let lines = label.split('\n');
+                            
+                            ctx.font = '900 11px sans-serif';
+                            ctx.strokeText(lines[0], 0, -6);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(lines[0], 0, -6);
+
+                            ctx.font = '900 10px sans-serif';
+                            ctx.strokeText(lines[1], 0, 7);
+                            ctx.fillStyle = '#ffff00';
+                            ctx.fillText(lines[1], 0, 7);
+                        } else {
+                            ctx.font = '900 13px sans-serif';
+                            ctx.strokeText(label, 0, 1);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(label, 0, 1);
+                        }
+
+                        ctx.restore();
+                    } else {
+                        drawAppleShape(x + APPLE_SIZE / 2, y + APPLE_SIZE / 2, APPLE_SIZE / 2 - 2, '#ff4757', null, isHighlighted);
+                        drawAppleContent(x + APPLE_SIZE / 2, y + APPLE_SIZE / 2, cell);
+                    }
+                }
+            }
+
+            for (let i = bombExplosions.length - 1; i >= 0; i--) {
+                let b = bombExplosions[i];
+                b.radius += 5;
+                b.life -= 0.03;
+                if (b.life <= 0 || b.radius > b.maxRadius) {
+                    bombExplosions.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = b.life;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 100, 0, 0.4)';
+                ctx.strokeStyle = '#ff3300';
+                ctx.lineWidth = 4;
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                let l = lasers[i];
+                l.life -= 0.02;
+                if (l.life <= 0) {
+                    lasers.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = Math.min(1.0, l.life * 1.2);
+                ctx.beginPath();
+                ctx.moveTo(l.x1, l.y1);
+                ctx.lineTo(l.x2, l.y2);
+                
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 8;
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 18;
+                ctx.stroke();
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.025;
+
+                if (p.side === 'bomb_spark') {
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    ctx.save();
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    p.vy += 0.35;
+                    p.rot += p.vRot;
+
+                    if (p.life <= 0 || p.y > canvas.height + 50) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+
+                    if (p.cell && p.cell.isItem) {
+                        ctx.beginPath();
+                        if (p.side === 'left') {
+                            ctx.arc(0, 0, APPLE_SIZE / 2 - 2, Math.PI * 0.5, Math.PI * 1.5);
+                        } else {
+                            ctx.arc(0, 0, APPLE_SIZE / 2 - 2, Math.PI * 1.5, Math.PI * 0.5);
+                        }
+                        ctx.closePath();
+                        let hue = (Date.now() / 10) % 360;
+                        ctx.fillStyle = `hsl(${hue}, 85%, 55%)`;
+                        ctx.fill();
+                    } else {
+                        drawAppleShape(0, 0, APPLE_SIZE / 2 - 2, '#ff4757', p.side === 'left');
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            for (let i = slashLines.length - 1; i >= 0; i--) {
+                let l = slashLines[i];
+                l.life -= 0.08;
+                if (l.life <= 0) {
+                    slashLines.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = l.life;
+                ctx.beginPath();
+                ctx.moveTo(l.x1, l.y1);
+                ctx.lineTo(l.x2, l.y2);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#ffff00';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            if (isDragging && !isPaused && !isShuffling) {
+                const sel = getSelectionRect();
+                if (canClear) {
+                    ctx.fillStyle = 'rgba(46, 213, 115, 0.25)';
+                    ctx.strokeStyle = '#2ed573';
+                } else {
+                    ctx.fillStyle = 'rgba(255, 71, 87, 0.25)';
+                    ctx.strokeStyle = '#ff4757';
+                }
+                ctx.lineWidth = 2;
+                ctx.fillRect(sel.x, sel.y, sel.w, sel.h);
+                ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+            }
+
+            animFrameId = requestAnimationFrame(draw);
+        }
+
+        window.onload = () => {
+            updateHighScoreUI();
+            updateThemeUI();
+            updateLegend();
+            resizeCanvas();
+            initGrid();
+            draw();
+        };
+    </script>
+</body>
+</html>
