@@ -1081,6 +1081,7 @@
                     spawnAppleCount += (cell.itemParam || 2);
                 }
 
+                // 폭탄 아이템 처리: 일반 사과만 파괴
                 if (cell.isItem && cell.itemType === 'BOMB') {
                     createBombExplosionEffect(ax, ay, isCrazy ? 120 : 70);
                     let range = cell.itemParam || 1;
@@ -1090,7 +1091,7 @@
                             let nc = c + dc;
                             if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
                                 let targetCell = grid[nr][nc];
-                                if (targetCell && !targetCell.isRemoved) {
+                                if (targetCell && !targetCell.isRemoved && !targetCell.isItem) {
                                     targetCell.isRemoved = true;
                                     additionalRemovedCount++;
                                     createSlicedParticles(targetCell.renderX + APPLE_SIZE / 2, targetCell.renderY + APPLE_SIZE / 2, targetCell);
@@ -1184,6 +1185,7 @@
             shuffleProgress = 0;
         }
 
+        // 레이저 처리: 아이템 사과는 통과하고 일반 사과만 제거
         function processLaserDirections(r, c, ax, ay, dirs) {
             let removedCount = 0;
             const isCrazy = gameMode.startsWith('crazy');
@@ -1205,14 +1207,17 @@
 
                     let targetCell = grid[nr][nc];
                     if (targetCell && !targetCell.isRemoved) {
-                        targetCell.isRemoved = true;
-                        removedCount++;
-                        createSlicedParticles(targetCell.renderX + APPLE_SIZE / 2, targetCell.renderY + APPLE_SIZE / 2, targetCell);
+                        // 아이템 사과가 아닌 경우(일반 사과)만 제거
+                        if (!targetCell.isItem) {
+                            targetCell.isRemoved = true;
+                            removedCount++;
+                            createSlicedParticles(targetCell.renderX + APPLE_SIZE / 2, targetCell.renderY + APPLE_SIZE / 2, targetCell);
 
-                        if (!isCrazy) {
-                            endX = targetCell.renderX + APPLE_SIZE / 2;
-                            endY = targetCell.renderY + APPLE_SIZE / 2;
-                            break;
+                            if (!isCrazy) {
+                                endX = targetCell.renderX + APPLE_SIZE / 2;
+                                endY = targetCell.renderY + APPLE_SIZE / 2;
+                                break;
+                            }
                         }
                     }
                     step++;
