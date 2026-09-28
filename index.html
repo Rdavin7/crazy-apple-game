@@ -651,6 +651,7 @@
         let score = 0;
         let timeLeft = 120;
         let timerId = null;
+        let timerEndAt = 0;
         let isGameOver = false;
         let isPaused = false;
         let animFrameId = null;
@@ -817,7 +818,9 @@
                 const cached = localStorage.getItem('online_leaderboard_cache');
                 if (cached) {
                     try {
-                        globalLeaderboard = normalizeLeaderboard(JSON.parse(cached));
+                        globalLeaderboard = mergePendingScoresIntoLeaderboard(
+                            normalizeLeaderboard(JSON.parse(cached))
+                        );
                     } catch (e) {
                         console.warn('리더보드 캐시 파싱 실패:', e);
                     }
@@ -849,7 +852,11 @@
                     throw new Error('JSONBin 응답에 유효한 record가 없습니다.');
                 }
 
-                globalLeaderboard = normalizeLeaderboard(data.record);
+                // 초기 GET이 게임 종료 직전에 시작된 경우에도
+                // 방금 플레이한 점수가 사라지지 않도록 pending 기록을 다시 합친다.
+                globalLeaderboard = mergePendingScoresIntoLeaderboard(
+                    normalizeLeaderboard(data.record)
+                );
                 localStorage.setItem(
                     'online_leaderboard_cache',
                     JSON.stringify(globalLeaderboard)
@@ -881,6 +888,31 @@
 
         // 같은 브라우저에서 저장 요청이 겹치지 않도록 순서를 보장한다.
         let leaderboardUpdatePromise = Promise.resolve();
+        // 서버 GET이 늦게 도착해 방금 저장한 기록을 덮어쓰지 않도록
+        // 아직 서버 저장 중인 최신 점수를 따로 보관한다.
+        const pendingLeaderboardScores = {};
+
+        function recordPendingScore(mode, name, score) {
+            const key = `${mode}::${String(name || '익명').trim().slice(0, 12) || '익명'}`;
+            pendingLeaderboardScores[key] = Math.max(
+                Number(pendingLeaderboardScores[key] || 0),
+                Number(score) || 0
+            );
+        }
+
+        function mergePendingScoresIntoLeaderboard(board) {
+            Object.entries(pendingLeaderboardScores).forEach(([key, score]) => {
+                const separator = key.indexOf('::');
+                const mode = key.slice(0, separator);
+                const name = key.slice(separator + 2);
+                if (!LEADERBOARD_MODES.includes(mode)) return;
+                if (!Array.isArray(board[mode])) board[mode] = [];
+                const index = board[mode].findIndex(entry => entry.name === name);
+                if (index === -1) board[mode].push({ name, score });
+                else if (score > Number(board[mode][index].score)) board[mode][index].score = score;
+            });
+            return normalizeLeaderboard(board);
+        }
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
@@ -895,6 +927,7 @@
             const safeScore = Number(newScore);
 
             if (!Number.isFinite(safeScore) || safeScore < 0) return false;
+            recordPendingScore(mode, safeName, safeScore);
 
             if (!globalLeaderboard || typeof globalLeaderboard !== 'object') {
                 globalLeaderboard = createEmptyLeaderboard();
@@ -1041,6 +1074,10 @@
                     );
 
                     renderLeaderboard();
+                    const pendingKey = `${mode}::${safeName}`;
+                    if (Number(pendingLeaderboardScores[pendingKey]) <= safeScore) {
+                        delete pendingLeaderboardScores[pendingKey];
+                    }
                     console.log(`리더보드 저장 성공 (${attempt}번째 시도)`);
                     return true;
                 } catch (error) {
@@ -1547,20 +1584,32 @@
 
         function startTimer() {
             if (timerId) clearInterval(timerId);
-            timerId = setInterval(() => {
-                if (!isPaused && !isGameOver) {
-                    timeLeft--;
-                    document.getElementById('timeText').innerText = timeLeft + '초';
-                    if (timeLeft <= 0) {
-                        endGame();
-                    }
+            timerEndAt = Date.now() + Math.max(0, timeLeft) * 1000;
+            const tick = () => {
+                if (isPaused || isGameOver) return;
+
+                const remainingMs = timerEndAt - Date.now();
+                if (remainingMs <= 0) {
+                    timeLeft = 0;
+                    document.getElementById('timeText').innerText = '0초';
+                    if (timerId) clearInterval(timerId);
+                    timerId = null;
+                    endGame();
+                    return;
                 }
-            }, 1000);
+
+                timeLeft = Math.ceil(remainingMs / 1000);
+                document.getElementById('timeText').innerText = timeLeft + '초';
+            };
+
+            tick();
+            timerId = setInterval(tick, 50);
         }
 
         function resetGame() {
             score = 0;
             timeLeft = 120;
+            timerEndAt = 0;
             isGameOver = false;
             isPaused = false;
             isShuffling = false;
@@ -1582,6 +1631,7 @@
         }
 
         async function endGame() {
+            if (isGameOver) return;
             isGameOver = true;
             if (timerId) clearInterval(timerId);
 
@@ -1771,7 +1821,11 @@
                 createSlicedParticles(ax, ay, cell);
 
                 if (cell.isItem && cell.itemType === 'TIME') {
-                    timeLeft += (cell.itemParam || 3);
+                    const addedTime = Number(cell.itemParam || 3);
+                    timeLeft += addedTime;
+                    if (!isPaused && !isGameOver && timerEndAt > 0) {
+                        timerEndAt += addedTime * 1000;
+                    }
                     document.getElementById('timeText').innerText = timeLeft + '초';
                 }
 
