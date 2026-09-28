@@ -327,6 +327,19 @@
                     <div id="leaderboardList" class="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto pr-1 leaderboard-scroll">
                         <!-- 동적 생성 -->
                     </div>
+
+                    <!-- 일일 / 전체 리더보드 전환 -->
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button id="dailyLeaderboardBtn" onclick="setLeaderboardPeriod('daily')" class="text-xs font-bold px-3 py-2 rounded-xl border border-amber-400/40 bg-amber-400/20 text-amber-200 transition-all">
+                            📅 일일 리더보드
+                        </button>
+                        <button id="allTimeLeaderboardBtn" onclick="setLeaderboardPeriod('all')" class="text-xs font-bold px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all">
+                            🏆 전체 리더보드
+                        </button>
+                    </div>
+                    <div id="dailyLeaderboardInfo" class="mt-2 text-center text-[11px] text-gray-500 hidden">
+                        오늘 00:00부터 기록 집계 · 초기화까지 <span id="dailyResetCountdown" class="text-amber-300 font-bold">--시간 --분</span>
+                    </div>
                 </div>
 
                 <div class="mt-4 pt-3 border-t border-white/10 text-center text-xs text-gray-400">
@@ -414,6 +427,8 @@
         let gameMode = 'normal';
         let bgTheme = localStorage.getItem('bg_theme') || 'black';
         let currentUsername = localStorage.getItem('apple_username') || '익명';
+        let leaderboardPeriod = 'daily';
+        let dailyResetTimerId = null;
 
         // 초기화된 빈 리더보드 구조
         let globalLeaderboard = {
@@ -422,7 +437,8 @@
             einstein: [],
             crazy: [],
             crazy_hard: [],
-            crazy_einstein: []
+            crazy_einstein: [],
+            daily: {}
         };
 
         const JSONBIN_CONFIG = {
@@ -470,32 +486,97 @@
             };
         }
 
-        // JSONBin 데이터가 일부 누락되거나 잘못되어도 항상 정상 구조로 정리
+        // 오늘 날짜를 브라우저의 현지 시간 기준 YYYY-MM-DD로 만든다.
+        // 따라서 플레이어가 보는 "오늘"과 일일 리더보드의 날짜가 일치한다.
+        function getTodayKey(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 다음 현지 자정까지 남은 밀리초
+        function getMillisecondsUntilNextMidnight() {
+            const now = new Date();
+            const nextMidnight = new Date(now);
+            nextMidnight.setHours(24, 0, 0, 0);
+            return Math.max(0, nextMidnight.getTime() - now.getTime());
+        }
+
+        // 전체 리더보드 + 일일 리더보드 구조를 안전하게 정리한다.
+        // 기존 JSONBin 데이터(모드 배열만 있는 형식)도 그대로 전체 리더보드로 유지한다.
         function normalizeLeaderboard(data) {
             const source = (data && typeof data === 'object' && !Array.isArray(data))
                 ? data
                 : {};
 
+            const normalizeList = (list) => {
+                if (!Array.isArray(list)) return [];
+
+                return list
+                    .filter(entry =>
+                        entry &&
+                        typeof entry.name === 'string' &&
+                        Number.isFinite(Number(entry.score))
+                    )
+                    .map(entry => ({
+                        name: String(entry.name).slice(0, 12),
+                        score: Number(entry.score)
+                    }))
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 10);
+            };
+
             const normalized = createEmptyLeaderboard();
 
+            // 기존 형식의 모드별 배열 = 전체 리더보드
             Object.keys(normalized).forEach(mode => {
-                if (Array.isArray(source[mode])) {
-                    normalized[mode] = source[mode]
-                        .filter(entry =>
-                            entry &&
-                            typeof entry.name === 'string' &&
-                            Number.isFinite(Number(entry.score))
-                        )
-                        .map(entry => ({
-                            name: String(entry.name).slice(0, 12),
-                            score: Number(entry.score)
-                        }))
-                        .sort((a, b) => b.score - a.score)
-                        .slice(0, 10);
-                }
+                normalized[mode] = normalizeList(source[mode]);
+            });
+
+            // 일일 리더보드는 날짜별로 보관한다.
+            normalized.daily = {};
+            if (source.daily && typeof source.daily === 'object' && !Array.isArray(source.daily)) {
+                Object.keys(source.daily).forEach(dateKey => {
+                    const dayData = source.daily[dateKey];
+                    if (!dayData || typeof dayData !== 'object' || Array.isArray(dayData)) return;
+
+                    const normalizedDay = createEmptyLeaderboard();
+                    Object.keys(normalizedDay).forEach(mode => {
+                        normalizedDay[mode] = normalizeList(dayData[mode]);
+                    });
+                    normalized.daily[dateKey] = normalizedDay;
+                });
+            }
+
+            // 오늘 데이터가 없으면 빈 일일 리더보드로 시작한다.
+            const todayKey = getTodayKey();
+            if (!normalized.daily[todayKey]) {
+                normalized.daily[todayKey] = createEmptyLeaderboard();
+            }
+
+            // 필요 없는 오래된 일일 데이터는 최대 7일만 보관한다.
+            // 전체 리더보드에는 전혀 영향을 주지 않는다.
+            const keepDateKeys = new Set();
+            for (let i = 0; i < 7; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                keepDateKeys.add(getTodayKey(d));
+            }
+            Object.keys(normalized.daily).forEach(dateKey => {
+                if (!keepDateKeys.has(dateKey)) delete normalized.daily[dateKey];
             });
 
             return normalized;
+        }
+
+        function getTodayDailyLeaderboard() {
+            const todayKey = getTodayKey();
+            if (!globalLeaderboard.daily) globalLeaderboard.daily = {};
+            if (!globalLeaderboard.daily[todayKey]) {
+                globalLeaderboard.daily[todayKey] = createEmptyLeaderboard();
+            }
+            return globalLeaderboard.daily[todayKey];
         }
 
         // 온라인 리더보드 읽기
@@ -564,6 +645,9 @@
             }
         }
 
+        // 리더보드에 사용할 게임 모드 키를 명시적으로 고정한다.
+        const LEADERBOARD_MODES = ['normal', 'hard', 'einstein', 'crazy', 'crazy_hard', 'crazy_einstein'];
+
         // 같은 브라우저에서 동시에 여러 저장 요청이 발생하는 것을 방지
         let leaderboardUpdatePromise = Promise.resolve();
 
@@ -575,14 +659,18 @@
                 }
 
                 // 반드시 서버의 최신 데이터를 먼저 읽는다.
-                // 기존 코드는 오래된 globalLeaderboard를 바로 PUT해서
-                // 다른 사람의 기록을 덮어쓸 수 있었다.
+                // 오래된 globalLeaderboard를 바로 PUT해서 다른 사람의 기록을 덮어쓰지 않는다.
                 const loaded = await fetchLeaderboard();
 
                 // 서버에서 최신 데이터를 못 읽었다면 절대로 PUT하지 않는다.
-                // 이것이 리더보드 전체 초기화를 막는 핵심이다.
                 if (!loaded) {
                     console.warn('최신 리더보드를 가져오지 못해 저장을 취소했습니다.');
+                    return false;
+                }
+
+                // 모드 키가 잘못되면 저장하지 않고 즉시 원인을 기록한다.
+                if (!LEADERBOARD_MODES.includes(mode)) {
+                    console.warn('알 수 없는 게임 모드라서 리더보드 저장을 취소했습니다:', mode);
                     return false;
                 }
 
@@ -593,21 +681,41 @@
                 const safeName = String(name || '익명').trim().slice(0, 12) || '익명';
                 const safeScore = Number(newScore);
 
-                if (!Number.isFinite(safeScore)) {
+                if (!Number.isFinite(safeScore) || safeScore < 0) {
                     console.warn('잘못된 점수라서 저장하지 않습니다:', newScore);
                     return false;
                 }
 
-                const existingIndex = globalLeaderboard[mode].findIndex(
+                // 1) 전체 리더보드 업데이트
+                const existingAllIndex = globalLeaderboard[mode].findIndex(
                     entry => entry.name === safeName
                 );
 
-                if (existingIndex !== -1) {
-                    if (safeScore > Number(globalLeaderboard[mode][existingIndex].score)) {
-                        globalLeaderboard[mode][existingIndex].score = safeScore;
+                if (existingAllIndex !== -1) {
+                    if (safeScore > Number(globalLeaderboard[mode][existingAllIndex].score)) {
+                        globalLeaderboard[mode][existingAllIndex].score = safeScore;
                     }
                 } else {
                     globalLeaderboard[mode].push({
+                        name: safeName,
+                        score: safeScore
+                    });
+                }
+
+                // 2) 오늘의 일일 리더보드 업데이트
+                const todayDaily = getTodayDailyLeaderboard();
+                if (!todayDaily[mode]) todayDaily[mode] = [];
+
+                const existingDailyIndex = todayDaily[mode].findIndex(
+                    entry => entry.name === safeName
+                );
+
+                if (existingDailyIndex !== -1) {
+                    if (safeScore > Number(todayDaily[mode][existingDailyIndex].score)) {
+                        todayDaily[mode][existingDailyIndex].score = safeScore;
+                    }
+                } else {
+                    todayDaily[mode].push({
                         name: safeName,
                         score: safeScore
                     });
@@ -655,15 +763,72 @@
             return leaderboardUpdatePromise;
         }
 
+        function setLeaderboardPeriod(period) {
+            leaderboardPeriod = period === 'daily' ? 'daily' : 'all';
+            renderLeaderboard();
+        }
+
+        function updateLeaderboardPeriodButtons() {
+            const dailyBtn = document.getElementById('dailyLeaderboardBtn');
+            const allBtn = document.getElementById('allTimeLeaderboardBtn');
+            const info = document.getElementById('dailyLeaderboardInfo');
+
+            if (!dailyBtn || !allBtn || !info) return;
+
+            if (leaderboardPeriod === 'daily') {
+                dailyBtn.className = 'text-xs font-bold px-3 py-2 rounded-xl border border-amber-400/40 bg-amber-400/20 text-amber-200 transition-all';
+                allBtn.className = 'text-xs font-bold px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all';
+                info.classList.remove('hidden');
+            } else {
+                dailyBtn.className = 'text-xs font-bold px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all';
+                allBtn.className = 'text-xs font-bold px-3 py-2 rounded-xl border border-amber-400/40 bg-amber-400/20 text-amber-200 transition-all';
+                info.classList.add('hidden');
+            }
+        }
+
+        function updateDailyResetCountdown() {
+            const countdown = document.getElementById('dailyResetCountdown');
+            const info = document.getElementById('dailyLeaderboardInfo');
+            if (!countdown || !info) return;
+
+            const ms = getMillisecondsUntilNextMidnight();
+            const totalMinutes = Math.max(1, Math.ceil(ms / 60000));
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            countdown.innerText = `${hours}시간 ${minutes}분`;
+
+        }
+
+        function startDailyResetCountdown() {
+            if (dailyResetTimerId) clearInterval(dailyResetTimerId);
+            updateDailyResetCountdown();
+            dailyResetTimerId = setInterval(() => {
+                updateDailyResetCountdown();
+                // 1분 단위 표시이므로 매분 리더보드 상태를 확인한다.
+                if (leaderboardPeriod === 'daily') renderLeaderboard();
+            }, 30000);
+        }
+
         function renderLeaderboard() {
-            const selectedMode = document.getElementById('leaderboardModeSelect').value;
+            const modeSelect = document.getElementById('leaderboardModeSelect');
             const container = document.getElementById('leaderboardList');
-            const list = globalLeaderboard[selectedMode] || [];
+            if (!modeSelect || !container) return;
+
+            const selectedMode = modeSelect.value;
+            const allTimeList = globalLeaderboard[selectedMode] || [];
+            const dailyData = getTodayDailyLeaderboard();
+            const list = leaderboardPeriod === 'daily'
+                ? (dailyData[selectedMode] || [])
+                : allTimeList;
 
             container.innerHTML = '';
+            updateLeaderboardPeriodButtons();
+            updateDailyResetCountdown();
 
             if (list.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 text-xs py-8">아직 기록이 없습니다.<br>첫 번째 주인공이 되어보세요!</div>`;
+                container.innerHTML = leaderboardPeriod === 'daily'
+                    ? `<div class="text-center text-gray-500 text-xs py-8">오늘은 아직 기록이 없습니다.<br>오늘의 첫 번째 주인공이 되어보세요! 🍎</div>`
+                    : `<div class="text-center text-gray-500 text-xs py-8">아직 기록이 없습니다.<br>첫 번째 주인공이 되어보세요!</div>`;
                 return;
             }
 
@@ -671,7 +836,7 @@
                 const rankColor = index === 0 ? 'text-yellow-400 font-extrabold' :
                                   index === 1 ? 'text-gray-300 font-bold' :
                                   index === 2 ? 'text-amber-600 font-bold' : 'text-gray-400';
-                
+
                 const rankBadge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
 
                 const row = document.createElement('div');
@@ -787,8 +952,9 @@
         }
 
         function createAdvancedAppleDisplay(val, mode) {
+            // 노말/크레이지에서는 일반 숫자 사과만 사용한다.
             if (mode === 'normal' || mode === 'crazy') {
-                return { type: 'NORMAL', text: String(val) };
+                return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
             }
 
             const isEinsteinMode = mode === 'einstein' || mode === 'crazy_einstein';
@@ -807,42 +973,118 @@
                 chosenType = allowedHardTypes[Math.floor(Math.random() * allowedHardTypes.length)];
             } else if (isEinsteinMode) {
                 const rand = Math.random();
-                if (rand < 0.35) chosenType = 'POWER';
-                else if (rand < 0.65) chosenType = 'FRACTION';
-                else {
-                    const allowedOther = ['ROOT', 'FACTORIAL', 'ABS', 'TRIG', 'LOG'];
-                    chosenType = allowedOther[Math.floor(Math.random() * allowedOther.length)];
-                }
+                if (rand < 0.25) chosenType = 'POWER';
+                else if (rand < 0.45) chosenType = 'FRACTION';
+                else if (rand < 0.57) chosenType = 'ROOT';
+                else if (rand < 0.68) chosenType = 'FACTORIAL';
+                else if (rand < 0.77) chosenType = 'ABS';
+                else if (rand < 0.90) chosenType = 'TRIG';
+                else chosenType = 'LOG';
             }
 
-            const effectiveVal = val;
+            const effectiveVal = Math.abs(Number(val)) || 1;
 
             if (chosenType === 'ROOT') {
-                const absVal = Math.abs(effectiveVal);
-                return { type: 'ROOT', isNegative: false, val: effectiveVal, text: `√${absVal * absVal}` };
+                return { type: 'ROOT', isNegative: false, val: effectiveVal, text: `√${effectiveVal * effectiveVal}` };
             }
 
             if (chosenType === 'FRACTION') {
                 const maxDenom = (mode === 'crazy_einstein') ? 15 : 10;
                 const den = Math.floor(Math.random() * maxDenom) + 1;
-                const absVal = Math.abs(effectiveVal);
-                const num = absVal * den;
+                const num = effectiveVal * den;
                 return { type: 'FRACTION', isNegative: false, num, den, val: effectiveVal };
             }
 
             if (chosenType === 'POWER') {
-                let validPowers = [
+                const validPowers = [
                     { base: 2, exp: 1, val: 2 }, { base: 2, exp: 2, val: 4 }, { base: 2, exp: 3, val: 8 },
                     { base: 3, exp: 1, val: 3 }, { base: 3, exp: 2, val: 9 }, { base: 4, exp: 1, val: 4 },
                     { base: 5, exp: 1, val: 5 }, { base: 6, exp: 1, val: 6 }, { base: 7, exp: 1, val: 7 },
                     { base: 8, exp: 1, val: 8 }, { base: 9, exp: 1, val: 9 }
                 ];
-                let chosenPower = validPowers[Math.floor(Math.random() * validPowers.length)];
+                const chosenPower = validPowers[Math.floor(Math.random() * validPowers.length)];
                 const superscriptExponents = ['⁰', '¹', '²', '³'];
-                return { type: 'NORMAL', val: chosenPower.val, text: `${chosenPower.base}${superscriptExponents[chosenPower.exp] || chosenPower.exp}` };
+                return {
+                    type: 'NORMAL',
+                    val: chosenPower.val,
+                    text: `${chosenPower.base}${superscriptExponents[chosenPower.exp] || chosenPower.exp}`
+                };
             }
 
-            return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
+            // 일반 사과처럼 점수 계산은 숫자 val을 사용하고, 화면에만 수식을 표시한다.
+            if (chosenType === 'FACTORIAL') {
+                const factorialValues = [1, 2, 6];
+                const target = factorialValues.includes(effectiveVal) ? effectiveVal : factorialValues[Math.floor(Math.random() * factorialValues.length)];
+                const n = target === 1 ? 1 : target === 2 ? 2 : 3;
+                return { type: 'NORMAL', val: target, text: `${n}!` };
+            }
+
+            if (chosenType === 'ABS') {
+                return { type: 'NORMAL', val: effectiveVal, text: `|${effectiveVal}|` };
+            }
+
+            function toSuperscript(value) {
+                const chars = String(value);
+                const map = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹' };
+                return chars.split('').map(ch => map[ch] || ch).join('');
+            }
+
+            function toSuperscriptPower(base, exponent) {
+                // base^exponent를 문자열로 만들어 로그의 결과가 exponent가 되도록 한다.
+                return `${base}${toSuperscript(exponent)}`;
+            }
+
+            // 아인슈타인 모드의 삼각함수 사과.
+            // 일반 사과와 동일하게 실제 값은 항상 1~9의 자연수다.
+            // sin/cos/tan은 결과가 1이 되는 각도를 사용하고,
+            // 계수를 앞에 붙여 4tan45 같은 형태로 표시한다.
+            if (chosenType === 'TRIG') {
+                const trigFunctions = [
+                    { fn: 'sin', angle: '90°' },
+                    { fn: 'cos', angle: '0°' },
+                    { fn: 'tan', angle: '45°' }
+                ];
+                const option = trigFunctions[Math.floor(Math.random() * trigFunctions.length)];
+                const trigValue = Math.floor(Math.random() * 9) + 1;
+                return {
+                    type: 'TRIG',
+                    val: trigValue,
+                    text: `${trigValue}${option.fn}${option.angle.replace('°', '')}`
+                };
+            }
+
+            // 로그 사과: 로그의 값은 일반 사과와 동일하게 1~9의 자연수.
+            // 화면에는 기본적인 log_a B 형태로 표시한다.
+            if (chosenType === 'LOG') {
+                // 밑과 진수는 모두 1~9 안에서 만들고, 결과값도 자연수가 되도록 한다.
+                // 가능한 정확한 조합만 사용: log2(2,4,8), log3(3,9), log4(4) 등.
+                const logOptions = [
+                    { base: 2, argument: 2, value: 1 },
+                    { base: 2, argument: 4, value: 2 },
+                    { base: 2, argument: 8, value: 3 },
+                    { base: 3, argument: 3, value: 1 },
+                    { base: 3, argument: 9, value: 2 },
+                    { base: 4, argument: 4, value: 1 },
+                    { base: 5, argument: 5, value: 1 },
+                    { base: 6, argument: 6, value: 1 },
+                    { base: 7, argument: 7, value: 1 },
+                    { base: 8, argument: 8, value: 1 },
+                    { base: 9, argument: 9, value: 1 }
+                ];
+                const option = logOptions[Math.floor(Math.random() * logOptions.length)];
+                const logValue = option.value;
+                const base = option.base;
+                const argument = option.argument;
+                return {
+                    type: 'LOG',
+                    val: logValue,
+                    base,
+                    argument,
+                    text: `log${base}${argument}`
+                };
+            }
+
+            return { type: 'NORMAL', val: effectiveVal, text: String(effectiveVal) };
         }
 
         function getRandomValue() {
@@ -1023,7 +1265,7 @@
             startTimer();
         }
 
-        function endGame() {
+        async function endGame() {
             isGameOver = true;
             if (timerId) clearInterval(timerId);
 
@@ -1032,7 +1274,8 @@
                 localStorage.setItem(`hs_${gameMode}`, score);
             }
 
-            updateOnlineLeaderboard(gameMode, currentUsername, score);
+            // 저장 완료를 기다린 뒤 게임 오버 화면을 표시해, 어려움/아인슈타인 모드도 누락되지 않게 한다.
+            await updateOnlineLeaderboard(gameMode, currentUsername, score);
 
             document.getElementById('finalScore').innerText = score;
             document.getElementById('finalHighScore').innerText = highScores[gameMode];
@@ -1500,11 +1743,46 @@
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
-            } else if (display.type === 'ROOT') {
+            } else if (display.type === 'LOG') {
+                // log_a B: 밑(base)은 작게 오른쪽 아래, 진수(argument)는 크게 표시
+                const baseText = String(display.base);
+                const argText = String(display.argument);
+                const logText = 'log';
                 ctx.lineWidth = 2;
-                ctx.font = '900 13px sans-serif';
-                ctx.strokeText(display.text, cx, cy);
-                ctx.fillText(display.text, cx, cy);
+
+                ctx.font = '900 12px sans-serif';
+                const logWidth = ctx.measureText(logText).width;
+                ctx.font = '900 7px sans-serif';
+                const baseWidth = ctx.measureText(baseText).width;
+                ctx.font = '900 15px sans-serif';
+                const argWidth = ctx.measureText(argText).width;
+
+                const totalWidth = logWidth + baseWidth * 0.75 + 3 + argWidth;
+                const startX = cx - totalWidth / 2;
+
+                ctx.font = '900 12px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.strokeText(logText, startX, cy - 1);
+                ctx.fillText(logText, startX, cy - 1);
+
+                const baseX = startX + logWidth - 1;
+                ctx.font = '900 7px sans-serif';
+                ctx.strokeText(baseText, baseX, cy + 6);
+                ctx.fillText(baseText, baseX, cy + 6);
+
+                const argX = baseX + baseWidth * 0.75 + 3;
+                ctx.font = '900 15px sans-serif';
+                ctx.strokeText(argText, argX, cy);
+                ctx.fillText(argText, argX, cy);
+
+                ctx.textAlign = 'center';
+            } else if (display.type === 'ROOT' || display.type === 'TRIG') {
+                ctx.lineWidth = 2;
+                const text = display.text || String(cell.val);
+                ctx.font = text.length > 9 ? '900 8px sans-serif' : (text.length > 6 ? '900 10px sans-serif' : '900 12px sans-serif');
+                ctx.strokeText(text, cx, cy);
+                ctx.fillText(text, cx, cy);
             } else {
                 ctx.lineWidth = 2.5;
                 let textToShow = display.text || String(cell.val);
@@ -1745,6 +2023,7 @@
             updateLegend();
             resizeCanvas();
             initGrid();
+            startDailyResetCountdown();
             fetchLeaderboard();
             draw();
         };
