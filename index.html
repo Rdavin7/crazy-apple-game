@@ -879,113 +879,198 @@
         // 리더보드에 사용할 게임 모드 키를 명시적으로 고정한다.
         const LEADERBOARD_MODES = ['normal', 'hard', 'einstein', 'crazy', 'crazy_hard', 'crazy_einstein'];
 
-        // 같은 브라우저에서 동시에 여러 저장 요청이 발생하는 것을 방지
+        // 같은 브라우저에서 저장 요청이 겹치지 않도록 순서를 보장한다.
         let leaderboardUpdatePromise = Promise.resolve();
 
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // 게임 한 판이 끝나는 즉시 화면/캐시에 먼저 반영한다.
+        // 서버 응답을 기다리느라 방금 끝낸 기록이 리더보드에서 사라져 보이지 않게 한다.
+        function applyScoreLocally(mode, name, newScore) {
+            if (!LEADERBOARD_MODES.includes(mode)) return false;
+
+            const safeName = String(name || '익명').trim().slice(0, 12) || '익명';
+            const safeScore = Number(newScore);
+
+            if (!Number.isFinite(safeScore) || safeScore < 0) return false;
+
+            if (!globalLeaderboard || typeof globalLeaderboard !== 'object') {
+                globalLeaderboard = createEmptyLeaderboard();
+                globalLeaderboard.daily = {};
+            }
+
+            if (!Array.isArray(globalLeaderboard[mode])) {
+                globalLeaderboard[mode] = [];
+            }
+
+            const allIndex = globalLeaderboard[mode].findIndex(
+                entry => entry.name === safeName
+            );
+
+            if (allIndex === -1) {
+                globalLeaderboard[mode].push({ name: safeName, score: safeScore });
+            } else if (safeScore > Number(globalLeaderboard[mode][allIndex].score)) {
+                globalLeaderboard[mode][allIndex].score = safeScore;
+            }
+
+            const todayDaily = getTodayDailyLeaderboard();
+            if (!Array.isArray(todayDaily[mode])) {
+                todayDaily[mode] = [];
+            }
+
+            const dailyIndex = todayDaily[mode].findIndex(
+                entry => entry.name === safeName
+            );
+
+            if (dailyIndex === -1) {
+                todayDaily[mode].push({ name: safeName, score: safeScore });
+            } else if (safeScore > Number(todayDaily[mode][dailyIndex].score)) {
+                todayDaily[mode][dailyIndex].score = safeScore;
+            }
+
+            globalLeaderboard = normalizeLeaderboard(globalLeaderboard);
+
+            localStorage.setItem(
+                'online_leaderboard_cache',
+                JSON.stringify(globalLeaderboard)
+            );
+
+            renderLeaderboard();
+            return true;
+        }
+
+        // JSONBin에 최신 데이터를 저장한다.
+        // 최신 버전을 다시 읽은 뒤 방금 점수를 합쳐 PUT하므로
+        // 오래된 브라우저 데이터로 다른 사람의 기록을 통째로 덮어쓰지 않는다.
+        async function saveScoreToServer(mode, name, newScore) {
+            const safeName = String(name || '익명').trim().slice(0, 12) || '익명';
+            const safeScore = Number(newScore);
+
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const getRes = await fetch(
+                        `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`,
+                        {
+                            method: 'GET',
+                            headers: {
+                                'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                                'Cache-Control': 'no-cache'
+                            },
+                            cache: 'no-store'
+                        }
+                    );
+
+                    if (!getRes.ok) {
+                        throw new Error(`JSONBin GET 실패: HTTP ${getRes.status}`);
+                    }
+
+                    const responseData = await getRes.json();
+
+                    if (!responseData || !responseData.record || typeof responseData.record !== 'object') {
+                        throw new Error('JSONBin 응답에 유효한 record가 없습니다.');
+                    }
+
+                    const serverLeaderboard = normalizeLeaderboard(responseData.record);
+
+                    // 전체 리더보드에 방금 점수 병합
+                    if (!serverLeaderboard[mode]) serverLeaderboard[mode] = [];
+
+                    const allIndex = serverLeaderboard[mode].findIndex(
+                        entry => entry.name === safeName
+                    );
+
+                    if (allIndex === -1) {
+                        serverLeaderboard[mode].push({
+                            name: safeName,
+                            score: safeScore
+                        });
+                    } else if (safeScore > Number(serverLeaderboard[mode][allIndex].score)) {
+                        serverLeaderboard[mode][allIndex].score = safeScore;
+                    }
+
+                    // 오늘의 일일 리더보드에 방금 점수 병합
+                    const todayKey = getTodayKey();
+                    if (!serverLeaderboard.daily) serverLeaderboard.daily = {};
+                    if (!serverLeaderboard.daily[todayKey]) {
+                        serverLeaderboard.daily[todayKey] = createEmptyLeaderboard();
+                    }
+
+                    const dailyBoard = serverLeaderboard.daily[todayKey];
+                    if (!dailyBoard[mode]) dailyBoard[mode] = [];
+
+                    const dailyIndex = dailyBoard[mode].findIndex(
+                        entry => entry.name === safeName
+                    );
+
+                    if (dailyIndex === -1) {
+                        dailyBoard[mode].push({
+                            name: safeName,
+                            score: safeScore
+                        });
+                    } else if (safeScore > Number(dailyBoard[mode][dailyIndex].score)) {
+                        dailyBoard[mode][dailyIndex].score = safeScore;
+                    }
+
+                    const payload = normalizeLeaderboard(serverLeaderboard);
+
+                    const putRes = await fetch(
+                        `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`,
+                        {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                                'X-Bin-Versioning': 'true'
+                            },
+                            body: JSON.stringify(payload),
+                            cache: 'no-store'
+                        }
+                    );
+
+                    if (!putRes.ok) {
+                        throw new Error(`JSONBin PUT 실패: HTTP ${putRes.status}`);
+                    }
+
+                    globalLeaderboard = payload;
+
+                    localStorage.setItem(
+                        'online_leaderboard_cache',
+                        JSON.stringify(globalLeaderboard)
+                    );
+
+                    renderLeaderboard();
+                    console.log(`리더보드 저장 성공 (${attempt}번째 시도)`);
+                    return true;
+                } catch (error) {
+                    console.warn(`리더보드 서버 저장 실패 (${attempt}/3):`, error);
+
+                    if (attempt < 3) {
+                        await sleep(500 * attempt);
+                    }
+                }
+            }
+
+            // 서버가 일시적으로 응답하지 않아도 이번 판의 기록은
+            // 이미 로컬 리더보드에 표시되어 있다.
+            console.warn('JSONBin 저장을 3회 시도했지만 성공하지 못했습니다. 로컬 기록은 유지합니다.');
+            return false;
+        }
+
         async function updateOnlineLeaderboard(mode, name, newScore) {
-            const runUpdate = async () => {
-                if (!JSONBIN_CONFIG.BIN_ID || !JSONBIN_CONFIG.API_KEY) {
-                    console.warn('JSONBin 설정이 없어 온라인 리더보드에 저장하지 않습니다.');
-                    return false;
-                }
+            // 게임 종료 즉시 리더보드에 반영한다.
+            const applied = applyScoreLocally(mode, name, newScore);
+            if (!applied) {
+                console.warn('리더보드에 반영할 수 없는 모드 또는 점수:', mode, newScore);
+                return false;
+            }
 
-                // 반드시 서버의 최신 데이터를 먼저 읽는다.
-                // 오래된 globalLeaderboard를 바로 PUT해서 다른 사람의 기록을 덮어쓰지 않는다.
-                const loaded = await fetchLeaderboard();
-
-                // 서버에서 최신 데이터를 못 읽었다면 절대로 PUT하지 않는다.
-                if (!loaded) {
-                    console.warn('최신 리더보드를 가져오지 못해 저장을 취소했습니다.');
-                    return false;
-                }
-
-                // 모드 키가 잘못되면 저장하지 않고 즉시 원인을 기록한다.
-                if (!LEADERBOARD_MODES.includes(mode)) {
-                    console.warn('알 수 없는 게임 모드라서 리더보드 저장을 취소했습니다:', mode);
-                    return false;
-                }
-
-                if (!globalLeaderboard[mode]) {
-                    globalLeaderboard[mode] = [];
-                }
-
-                const safeName = String(name || '익명').trim().slice(0, 12) || '익명';
-                const safeScore = Number(newScore);
-
-                if (!Number.isFinite(safeScore) || safeScore < 0) {
-                    console.warn('잘못된 점수라서 저장하지 않습니다:', newScore);
-                    return false;
-                }
-
-                // 1) 전체 리더보드 업데이트
-                const existingAllIndex = globalLeaderboard[mode].findIndex(
-                    entry => entry.name === safeName
-                );
-
-                if (existingAllIndex !== -1) {
-                    if (safeScore > Number(globalLeaderboard[mode][existingAllIndex].score)) {
-                        globalLeaderboard[mode][existingAllIndex].score = safeScore;
-                    }
-                } else {
-                    globalLeaderboard[mode].push({
-                        name: safeName,
-                        score: safeScore
-                    });
-                }
-
-                // 2) 오늘의 일일 리더보드 업데이트
-                const todayDaily = getTodayDailyLeaderboard();
-                if (!todayDaily[mode]) todayDaily[mode] = [];
-
-                const existingDailyIndex = todayDaily[mode].findIndex(
-                    entry => entry.name === safeName
-                );
-
-                if (existingDailyIndex !== -1) {
-                    if (safeScore > Number(todayDaily[mode][existingDailyIndex].score)) {
-                        todayDaily[mode][existingDailyIndex].score = safeScore;
-                    }
-                } else {
-                    todayDaily[mode].push({
-                        name: safeName,
-                        score: safeScore
-                    });
-                }
-
-                globalLeaderboard = normalizeLeaderboard(globalLeaderboard);
-
-                const res = await fetch(
-                    `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`,
-                    {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Master-Key': JSONBIN_CONFIG.API_KEY,
-                            'X-Bin-Versioning': 'true'
-                        },
-                        body: JSON.stringify(globalLeaderboard),
-                        cache: 'no-store'
-                    }
-                );
-
-                if (!res.ok) {
-                    throw new Error(`JSONBin PUT 실패: HTTP ${res.status}`);
-                }
-
-                // 서버 저장이 성공한 경우에만 캐시를 갱신한다.
-                localStorage.setItem(
-                    'online_leaderboard_cache',
-                    JSON.stringify(globalLeaderboard)
-                );
-
-                renderLeaderboard();
-                return true;
-            };
-
-            // 같은 브라우저에서 연속 저장 요청의 순서를 보장한다.
+            // 서버 저장은 순서를 보장하면서 백그라운드가 아닌
+            // 게임 종료 흐름 안에서 확실히 기다린다.
             leaderboardUpdatePromise = leaderboardUpdatePromise
                 .catch(() => false)
-                .then(runUpdate)
+                .then(() => saveScoreToServer(mode, name, newScore))
                 .catch(error => {
                     console.warn('온라인 리더보드 저장 실패:', error);
                     return false;
