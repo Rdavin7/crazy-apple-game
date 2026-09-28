@@ -458,62 +458,201 @@
             4: [[1, 1, 1, 7], [1, 1, 2, 6], [1, 1, 3, 5], [1, 1, 4, 4], [1, 2, 2, 5], [1, 2, 3, 4], [2, 2, 2, 4], [2, 2, 3, 3]]
         };
 
-        async function fetchLeaderboard() {
-            if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.API_KEY) {
-                try {
-                    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`, {
-                        headers: { 'X-Master-Key': JSONBIN_CONFIG.API_KEY }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        globalLeaderboard = data.record;
-                        localStorage.setItem('online_leaderboard_cache', JSON.stringify(globalLeaderboard));
-                    }
-                } catch (e) {
-                    console.warn('온라인 리더보드 로드 실패:', e);
-                }
-            } else {
-                let cached = localStorage.getItem('online_leaderboard_cache');
-                if (cached) {
-                    try { globalLeaderboard = JSON.parse(cached); } catch(e){}
-                }
-            }
-            renderLeaderboard();
+        // 리더보드 기본 구조
+        function createEmptyLeaderboard() {
+            return {
+                normal: [],
+                hard: [],
+                einstein: [],
+                crazy: [],
+                crazy_hard: [],
+                crazy_einstein: []
+            };
         }
 
-        async function updateOnlineLeaderboard(mode, name, newScore) {
-            if (!globalLeaderboard[mode]) globalLeaderboard[mode] = [];
-            
-            const existingIndex = globalLeaderboard[mode].findIndex(entry => entry.name === name);
-            if (existingIndex !== -1) {
-                if (newScore > globalLeaderboard[mode][existingIndex].score) {
-                    globalLeaderboard[mode][existingIndex].score = newScore;
+        // JSONBin 데이터가 일부 누락되거나 잘못되어도 항상 정상 구조로 정리
+        function normalizeLeaderboard(data) {
+            const source = (data && typeof data === 'object' && !Array.isArray(data))
+                ? data
+                : {};
+
+            const normalized = createEmptyLeaderboard();
+
+            Object.keys(normalized).forEach(mode => {
+                if (Array.isArray(source[mode])) {
+                    normalized[mode] = source[mode]
+                        .filter(entry =>
+                            entry &&
+                            typeof entry.name === 'string' &&
+                            Number.isFinite(Number(entry.score))
+                        )
+                        .map(entry => ({
+                            name: String(entry.name).slice(0, 12),
+                            score: Number(entry.score)
+                        }))
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 10);
                 }
-            } else {
-                globalLeaderboard[mode].push({ name, score: newScore });
+            });
+
+            return normalized;
+        }
+
+        // 온라인 리더보드 읽기
+        // 읽기에 실패했다고 빈 데이터를 서버에 저장하지 않는다.
+        async function fetchLeaderboard() {
+            if (!JSONBIN_CONFIG.BIN_ID || !JSONBIN_CONFIG.API_KEY) {
+                const cached = localStorage.getItem('online_leaderboard_cache');
+                if (cached) {
+                    try {
+                        globalLeaderboard = normalizeLeaderboard(JSON.parse(cached));
+                    } catch (e) {
+                        console.warn('리더보드 캐시 파싱 실패:', e);
+                    }
+                }
+                renderLeaderboard();
+                return false;
             }
 
-            globalLeaderboard[mode].sort((a, b) => b.score - a.score);
-            globalLeaderboard[mode] = globalLeaderboard[mode].slice(0, 10);
+            try {
+                const res = await fetch(
+                    `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}/latest`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                            'Cache-Control': 'no-cache'
+                        },
+                        cache: 'no-store'
+                    }
+                );
 
-            localStorage.setItem('online_leaderboard_cache', JSON.stringify(globalLeaderboard));
+                if (!res.ok) {
+                    throw new Error(`JSONBin GET 실패: HTTP ${res.status}`);
+                }
 
-            if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.API_KEY) {
-                try {
-                    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`, {
+                const data = await res.json();
+
+                if (!data || !data.record || typeof data.record !== 'object') {
+                    throw new Error('JSONBin 응답에 유효한 record가 없습니다.');
+                }
+
+                globalLeaderboard = normalizeLeaderboard(data.record);
+                localStorage.setItem(
+                    'online_leaderboard_cache',
+                    JSON.stringify(globalLeaderboard)
+                );
+
+                renderLeaderboard();
+                return true;
+            } catch (e) {
+                console.warn('온라인 리더보드 로드 실패:', e);
+
+                // 화면 표시용으로만 캐시를 사용한다.
+                // 서버에 캐시 내용을 다시 PUT하지 않는다.
+                const cached = localStorage.getItem('online_leaderboard_cache');
+                if (cached) {
+                    try {
+                        globalLeaderboard = normalizeLeaderboard(JSON.parse(cached));
+                    } catch (cacheError) {
+                        console.warn('리더보드 캐시 파싱 실패:', cacheError);
+                    }
+                }
+
+                renderLeaderboard();
+                return false;
+            }
+        }
+
+        // 같은 브라우저에서 동시에 여러 저장 요청이 발생하는 것을 방지
+        let leaderboardUpdatePromise = Promise.resolve();
+
+        async function updateOnlineLeaderboard(mode, name, newScore) {
+            const runUpdate = async () => {
+                if (!JSONBIN_CONFIG.BIN_ID || !JSONBIN_CONFIG.API_KEY) {
+                    console.warn('JSONBin 설정이 없어 온라인 리더보드에 저장하지 않습니다.');
+                    return false;
+                }
+
+                // 반드시 서버의 최신 데이터를 먼저 읽는다.
+                // 기존 코드는 오래된 globalLeaderboard를 바로 PUT해서
+                // 다른 사람의 기록을 덮어쓸 수 있었다.
+                const loaded = await fetchLeaderboard();
+
+                // 서버에서 최신 데이터를 못 읽었다면 절대로 PUT하지 않는다.
+                // 이것이 리더보드 전체 초기화를 막는 핵심이다.
+                if (!loaded) {
+                    console.warn('최신 리더보드를 가져오지 못해 저장을 취소했습니다.');
+                    return false;
+                }
+
+                if (!globalLeaderboard[mode]) {
+                    globalLeaderboard[mode] = [];
+                }
+
+                const safeName = String(name || '익명').trim().slice(0, 12) || '익명';
+                const safeScore = Number(newScore);
+
+                if (!Number.isFinite(safeScore)) {
+                    console.warn('잘못된 점수라서 저장하지 않습니다:', newScore);
+                    return false;
+                }
+
+                const existingIndex = globalLeaderboard[mode].findIndex(
+                    entry => entry.name === safeName
+                );
+
+                if (existingIndex !== -1) {
+                    if (safeScore > Number(globalLeaderboard[mode][existingIndex].score)) {
+                        globalLeaderboard[mode][existingIndex].score = safeScore;
+                    }
+                } else {
+                    globalLeaderboard[mode].push({
+                        name: safeName,
+                        score: safeScore
+                    });
+                }
+
+                globalLeaderboard = normalizeLeaderboard(globalLeaderboard);
+
+                const res = await fetch(
+                    `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`,
+                    {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                            'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                            'X-Bin-Versioning': 'true'
                         },
-                        body: JSON.stringify(globalLeaderboard)
-                    });
-                } catch (e) {
-                    console.warn('온라인 리더보드 동기화 실패:', e);
-                }
-            }
+                        body: JSON.stringify(globalLeaderboard),
+                        cache: 'no-store'
+                    }
+                );
 
-            renderLeaderboard();
+                if (!res.ok) {
+                    throw new Error(`JSONBin PUT 실패: HTTP ${res.status}`);
+                }
+
+                // 서버 저장이 성공한 경우에만 캐시를 갱신한다.
+                localStorage.setItem(
+                    'online_leaderboard_cache',
+                    JSON.stringify(globalLeaderboard)
+                );
+
+                renderLeaderboard();
+                return true;
+            };
+
+            // 같은 브라우저에서 연속 저장 요청의 순서를 보장한다.
+            leaderboardUpdatePromise = leaderboardUpdatePromise
+                .catch(() => false)
+                .then(runUpdate)
+                .catch(error => {
+                    console.warn('온라인 리더보드 저장 실패:', error);
+                    return false;
+                });
+
+            return leaderboardUpdatePromise;
         }
 
         function renderLeaderboard() {
