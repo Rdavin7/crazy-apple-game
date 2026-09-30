@@ -667,7 +667,7 @@
         // SUPABASE_PUBLISHABLE_KEY에는 Supabase의 Publishable key를 한 번만 붙여 넣으면 됩니다.
         // Secret key / service_role key는 절대 넣지 마세요.
         const SUPABASE_URL = 'https://peuuwejsqqicgiabhgyc.supabase.co';
-        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_izInFp-s4XDMoVcrNn9M8Q_IyMRbKkG';
+        const SUPABASE_PUBLISHABLE_KEY = 'PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE';
         const SUPABASE_TABLE = 'leaderboard';
 
         function isSupabaseConfigured() {
@@ -1857,6 +1857,30 @@
             });
 
             grid = newGrid;
+
+            // 크레이지 모드에서는 셔플 사과 효과로 일반 사과 5개를
+            // 새로운 아이템 사과로 변환한다. 다른 모드의 셔플 동작은 그대로 유지한다.
+            if (gameMode === 'crazy') {
+                const normalApplePositions = [];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = grid[r][c];
+                        if (cell && !cell.isRemoved && !cell.isItem) {
+                            normalApplePositions.push({ r, c });
+                        }
+                    }
+                }
+
+                for (let i = normalApplePositions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [normalApplePositions[i], normalApplePositions[j]] = [normalApplePositions[j], normalApplePositions[i]];
+                }
+
+                normalApplePositions.slice(0, Math.min(5, normalApplePositions.length)).forEach(pos => {
+                    createItemApple(pos.r, pos.c);
+                });
+            }
+
             isShuffling = true;
             shuffleProgress = 0;
         }
