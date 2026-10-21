@@ -1812,7 +1812,25 @@
             });
 
             if (spawnAppleCount > 0) spawnNewApples(spawnAppleCount);
-            if (triggerShuffle) startShuffleAnimationAllGrid();
+            if (triggerShuffle) {
+                if (gameMode === 'blind_item') {
+                    // 블라인드 모드: 셔플 사과는 제거 후 남아 있는 일반 사과 5개를 아이템 사과로 바꿉니다.
+                    const normalApples = [];
+                    for (let r = 0; r < ROWS; r++) {
+                        for (let c = 0; c < COLS; c++) {
+                            const cell = grid[r][c];
+                            if (cell && !cell.isRemoved && !cell.isItem) normalApples.push({ r, c });
+                        }
+                    }
+                    for (let i = normalApples.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [normalApples[i], normalApples[j]] = [normalApples[j], normalApples[i]];
+                    }
+                    normalApples.slice(0, 5).forEach(pos => createItemApple(pos.r, pos.c));
+                } else {
+                    startShuffleAnimationAllGrid();
+                }
+            }
         }
 
         function startShuffleAnimationAllGrid() {
@@ -2168,8 +2186,11 @@
                         const isCrazy = gameMode.startsWith('crazy') || gameMode === 'blind_item';
 
                         if (gameMode === 'blind_item') {
-                            // 블라인드 모드에서도 무한사과는 크레이지 모드와 동일하게 표시
-                            label = cell.itemType === 'INFINITE' ? `∞(${cell.itemParam})` : `?\n${cell.val}`;
+                            // 무한·마이너스·10 사과는 정체를 그대로 표시하고, 나머지 아이템만 블라인드 처리합니다.
+                            if (cell.isItem && cell.itemType === 'INFINITE') label = `∞(${cell.itemParam})`;
+                            else if (cell.isItem && cell.itemType === 'MINUS') label = `${cell.val}`;
+                            else if (cell.isItem && cell.itemType === 'TEN') label = `🍎\n10`;
+                            else if (cell.isItem) label = `?\n${cell.val}`;
                         } else if (cell.itemType === 'INFINITE') label = isCrazy ? `∞(${cell.itemParam})` : '∞';
                         else if (cell.itemType === 'DOUBLE') label = `${cell.val}\n(${cell.itemParam || 2}X)`;
                         else if (cell.itemType === 'SPAWN') label = `${cell.val}\n(+${cell.itemParam || 1})`;
