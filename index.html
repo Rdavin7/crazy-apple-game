@@ -497,6 +497,7 @@
                 <div class="flex gap-2 mb-4 bg-black/40 p-1.5 rounded-2xl border border-white/5">
                     <button id="tabNormalBtn" class="tab-btn flex-1 active-tab" onclick="switchTab('normal')">🍎 노말 탭</button>
                     <button id="tabCrazyBtn" class="tab-btn flex-1" onclick="switchTab('crazy')">🤪 크레이지 탭</button>
+                    <button id="tabSpecialBtn" class="tab-btn flex-1" onclick="switchTab('special')">✨ 특수 탭</button>
                 </div>
 
                 <div id="tabNormalContent" class="flex flex-col gap-2.5">
@@ -528,6 +529,14 @@
                         <span id="hs_crazy_einstein" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
                     </button>
                 </div>
+
+                <div id="tabSpecialContent" class="flex flex-col gap-2.5 hidden">
+                    <button class="btn-mode" style="background:linear-gradient(135deg,#64748b,#334155);box-shadow:0 6px 18px rgba(100,116,139,.35)" onclick="startGame('blind_item')">
+                        <span>❔ 블라인드 아이템 모드</span>
+                        <span id="hs_blind_item" class="text-xs bg-black/30 px-2.5 py-1 rounded-full text-yellow-300">0점</span>
+                    </button>
+                    <p class="text-xs text-gray-400 text-left px-1">아이템 사과의 종류가 숨겨집니다. 숫자만 보고 어떤 아이템인지 추리해 보세요!</p>
+                </div>
             </div>
 
             <!-- 오른쪽: 리더보드 카드 -->
@@ -551,6 +560,7 @@
                             <option value="crazy">🤪 크레이지 모드</option>
                             <option value="crazy_hard">💀 크레이지 어려움</option>
                             <option value="crazy_einstein">⚛️ 크레이지 아인슈타인</option>
+                            <option value="blind_item">❔ 블라인드 아이템 모드</option>
                         </select>
                     </div>
 
@@ -779,6 +789,7 @@
             crazy: [],
             crazy_hard: [],
             crazy_einstein: [],
+            blind_item: [],
             daily: {}
         };
 
@@ -788,7 +799,8 @@
             einstein: parseInt(localStorage.getItem('hs_einstein') || '0'),
             crazy: parseInt(localStorage.getItem('hs_crazy') || '0'),
             crazy_hard: parseInt(localStorage.getItem('hs_crazy_hard') || '0'),
-            crazy_einstein: parseInt(localStorage.getItem('hs_crazy_einstein') || '0')
+            crazy_einstein: parseInt(localStorage.getItem('hs_crazy_einstein') || '0'),
+            blind_item: parseInt(localStorage.getItem('hs_blind_item') || '0')
         };
 
         let particles = [];
@@ -818,7 +830,8 @@
                 einstein: [],
                 crazy: [],
                 crazy_hard: [],
-                crazy_einstein: []
+                crazy_einstein: [],
+                blind_item: []
             };
         }
 
@@ -939,7 +952,7 @@
         }
 
         // 리더보드에 사용할 게임 모드 키를 명시적으로 고정한다.
-        const LEADERBOARD_MODES = ['normal', 'hard', 'einstein', 'crazy', 'crazy_hard', 'crazy_einstein'];
+        const LEADERBOARD_MODES = ['normal', 'hard', 'einstein', 'crazy', 'crazy_hard', 'crazy_einstein', 'blind_item'];
 
         // 게임 한 판이 끝나는 즉시 로컬 리더보드에 저장한다.
         // 추후 온라인 DB를 연결할 때 이 함수만 서버 저장 함수와 함께 확장하면 됩니다.
@@ -1169,20 +1182,17 @@
         function switchTab(tab) {
             const normalContent = document.getElementById('tabNormalContent');
             const crazyContent = document.getElementById('tabCrazyContent');
+            const specialContent = document.getElementById('tabSpecialContent');
             const tabNormalBtn = document.getElementById('tabNormalBtn');
             const tabCrazyBtn = document.getElementById('tabCrazyBtn');
+            const tabSpecialBtn = document.getElementById('tabSpecialBtn');
 
-            if (tab === 'normal') {
-                normalContent.classList.remove('hidden');
-                crazyContent.classList.add('hidden');
-                tabNormalBtn.classList.add('active-tab');
-                tabCrazyBtn.classList.remove('active-tab');
-            } else {
-                normalContent.classList.add('hidden');
-                crazyContent.classList.remove('hidden');
-                tabNormalBtn.classList.remove('active-tab');
-                tabCrazyBtn.classList.add('active-tab');
-            }
+            normalContent.classList.toggle('hidden', tab !== 'normal');
+            crazyContent.classList.toggle('hidden', tab !== 'crazy');
+            specialContent.classList.toggle('hidden', tab !== 'special');
+            tabNormalBtn.classList.toggle('active-tab', tab === 'normal');
+            tabCrazyBtn.classList.toggle('active-tab', tab === 'crazy');
+            tabSpecialBtn.classList.toggle('active-tab', tab === 'special');
         }
 
         function updateLegend() {
@@ -1230,7 +1240,7 @@
 
         function createAdvancedAppleDisplay(val, mode) {
             // 노말/크레이지에서는 일반 숫자 사과만 사용한다.
-            if (mode === 'normal' || mode === 'crazy') {
+            if (mode === 'normal' || mode === 'crazy' || mode === 'blind_item') {
                 return { type: 'NORMAL', val: Math.abs(val), text: String(Math.abs(val)) };
             }
 
@@ -1448,7 +1458,10 @@
             document.getElementById('gameScreen').classList.add('active');
 
             const modeText = document.getElementById('modeText');
-            if (gameMode === 'crazy_einstein') {
+            if (gameMode === 'blind_item') {
+                modeText.innerText = '❔ 블라인드 아이템';
+                modeText.className = 'text-base font-bold text-slate-300';
+            } else if (gameMode === 'crazy_einstein') {
                 modeText.innerText = '⚛️ 크레이지 아인슈타인';
                 modeText.className = 'text-base font-bold text-cyan-400';
             } else if (gameMode === 'crazy_hard') {
@@ -1668,7 +1681,7 @@
             let val = Math.floor(Math.random() * 9) + 1;
             let param = (newType === 'DOUBLE') ? 2 : 1;
 
-            const isCrazy = gameMode.startsWith('crazy');
+            const isCrazy = gameMode.startsWith('crazy') || gameMode === 'blind_item';
 
             if (isCrazy) {
                 if (newType === 'TIME') param = 5;
@@ -1710,7 +1723,7 @@
             let triggerShuffle = false;
             let bonusScore = 0;
 
-            const isCrazy = gameMode.startsWith('crazy');
+            const isCrazy = gameMode.startsWith('crazy') || gameMode === 'blind_item';
 
             selectedApples.forEach(item => {
                 let cell = item.cell;
@@ -1864,7 +1877,7 @@
         // 레이저 처리: 아이템 사과는 통과하고 일반 사과만 제거
         function processLaserDirections(r, c, ax, ay, dirs) {
             let removedCount = 0;
-            const isCrazy = gameMode.startsWith('crazy');
+            const isCrazy = gameMode.startsWith('crazy') || gameMode === 'blind_item';
 
             dirs.forEach(d => {
                 let step = 1;
@@ -2152,9 +2165,12 @@
                         ctx.textBaseline = 'middle';
 
                         let label = cell.val;
-                        const isCrazy = gameMode.startsWith('crazy');
+                        const isCrazy = gameMode.startsWith('crazy') || gameMode === 'blind_item';
 
-                        if (cell.itemType === 'INFINITE') label = isCrazy ? `∞(${cell.itemParam})` : '∞';
+                        if (gameMode === 'blind_item') {
+                            // 블라인드 모드에서도 무한사과는 크레이지 모드와 동일하게 표시
+                            label = cell.itemType === 'INFINITE' ? `∞(${cell.itemParam})` : `?\n${cell.val}`;
+                        } else if (cell.itemType === 'INFINITE') label = isCrazy ? `∞(${cell.itemParam})` : '∞';
                         else if (cell.itemType === 'DOUBLE') label = `${cell.val}\n(${cell.itemParam || 2}X)`;
                         else if (cell.itemType === 'SPAWN') label = `${cell.val}\n(+${cell.itemParam || 1})`;
                         else if (cell.itemType === 'BOMB') label = `💣\n${cell.val}`;
